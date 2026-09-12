@@ -140,6 +140,12 @@ export default function BoardPage() {
         {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
 
+      {syncMessage && (
+        <div className="sync-toast" role="status" aria-live="polite">
+          {syncMessage}
+        </div>
+      )}
+
       {loading ? (
         <p className="hint">Loading your applications...</p>
       ) : (
