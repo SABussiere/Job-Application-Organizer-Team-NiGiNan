@@ -36,6 +36,16 @@ export default function BoardPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (!syncMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setSyncMessage("");
+    }, 4000);
+
+    return () => clearTimeout(timeoutId);
+  }, [syncMessage]);
+
+  useEffect(() => {
     fetch("/api/auth/google/status")
       .then(res => res.json())
       .then(data => setGmailConnected(data.connected))
