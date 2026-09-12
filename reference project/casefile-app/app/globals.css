@@ -771,7 +771,6 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .suggest-option.highlight { background: var(--accent-soft); color: var(--accent); }
 .field-note { font-size: 11px; color: var(--muted); margin: 5px 0 0; line-height: 1.4; }
 
-<<<<<<< HEAD
 /* ---------- Verified location picker ---------- */
 .loc-wrap { position: relative; }
 .loc-wrap input {
