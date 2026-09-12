@@ -34,8 +34,9 @@ cd server
 npm install
 npm run dev
 ```
-Opens at http://localhost:3000 — Case Board, Master Resume, and Follow-ups
-views all live here, backed by the API.
+Opens at http://localhost:3000 — the Case Board and Master Resume views both
+live here, backed by the API. Follow-ups are a filter on the board rather
+than a view of their own.
 
 **2. Mobile app**
 ```bash
