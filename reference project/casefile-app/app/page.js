@@ -128,7 +128,7 @@ export default function BoardPage() {
         />
         <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Scanning..." : "📥 Scan Gmail"}
+          {syncing ? "Scanning..." : "Scan Gmail"}
         </button>
 
         {gmailConnected && (

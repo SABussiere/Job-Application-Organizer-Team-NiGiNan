@@ -87,6 +87,7 @@ export default function ReviewPage() {
 
   return (
     <div className="panel">
+<<<<<<< Updated upstream
       <h2>Review queue</h2>
       <ul className="reminders-list">
         {pending.map(p => (
@@ -102,6 +103,88 @@ export default function ReviewPage() {
           </li>
         ))}
       </ul>
+=======
+      <div className="review-header">
+        <div>
+          <h2>Email review</h2>
+          <p className="hint" style={{ margin: 0 }}>
+            Guesses from your synced inbox — check the fields, then confirm or dismiss.
+          </p>
+        </div>
+        <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
+          {syncing ? "Syncing..." : "Scan Gmail"}
+        </button>
+      </div>
+      {syncMessage && <p className="hint">{syncMessage}</p>}
+
+      {pending.length === 0 ? (
+        <p className="hint">Nothing to review right now.</p>
+      ) : (
+        <>
+          <p className="review-count">{pending.length} to review</p>
+          <ul className="review-list">
+            {pending.map(p => {
+              const fields = edits[p.id] || p.extracted;
+              const meta = stageMeta(fields.status);
+              const lowConfidence = p.extracted.confidence < 0.5;
+              return (
+                <li key={p.id} className="review-item" style={{ "--stage-color": meta.color }}>
+                  <div className="review-source">
+                    From an email received {formatDate(p.receivedAt)}
+                    {lowConfidence && <span className="review-confidence low">Low confidence — double-check</span>}
+                  </div>
+
+                  <div className="review-fields">
+                    <div className="review-field">
+                      <label>Company</label>
+                      <input
+                        value={fields.company}
+                        onChange={e => setField(p.id, "company", e.target.value)}
+                      />
+                    </div>
+                    <div className="review-field">
+                      <label>Position</label>
+                      <input
+                        value={fields.position}
+                        onChange={e => setField(p.id, "position", e.target.value)}
+                      />
+                    </div>
+                    <div className="review-field" style={{ maxWidth: 160 }}>
+                      <label>Stage</label>
+                      <select
+                        value={fields.status}
+                        onChange={e => setField(p.id, "status", e.target.value)}
+                      >
+                        {STAGES.map(stage => (
+                          <option key={stage} value={stage}>{stageMeta(stage).label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="review-actions">
+                    <button
+                      className="btn-danger"
+                      onClick={() => dismiss(p.id)}
+                      disabled={busyId === p.id}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => confirm(p)}
+                      disabled={busyId === p.id}
+                    >
+                      {busyId === p.id ? "Working..." : "Confirm"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+>>>>>>> Stashed changes
     </div>
   );
 }
