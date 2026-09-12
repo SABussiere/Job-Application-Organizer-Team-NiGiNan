@@ -55,7 +55,7 @@ export async function POST(request, { params }) {
       matchedTags: d.matchedTags,
       matchedWords: d.matchedWords
     }))
-    // .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score);
 
   return withCors({ application: updated, matchSummary });
 }
