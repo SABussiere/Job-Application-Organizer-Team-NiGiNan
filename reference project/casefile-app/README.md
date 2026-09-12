@@ -1,7 +1,7 @@
 # Casefile — Job Application Tracker (Minimal design variant)
 
 This is the sleek/minimal card-based visual variant of Casefile — same data
-model, same API, same features as the manila "case file" version. Only the
+model, same features as the manila "case file" version. Only the
 design system changed: flat white cards, one deep-teal accent, Inter
 typeface, varied corner radius by hierarchy instead of one radius on
 everything.
@@ -11,18 +11,40 @@ applications through stages, tailor resumes per role, log employer
 communications, and get follow-up visibility — as **one responsive web app**
 that works in a desktop browser and a mobile browser from a single codebase.
 
-Built with Next.js (App Router) — API routes and the frontend live together.
+Built with Next.js (App Router). There's no server API layer — the browser
+talks to Firestore directly, and each signed-in user only ever sees their
+own applications and master resume.
 
 ## Quick start
 
-```bash
-npm install
-npm run dev
-```
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com)
+   (or reuse one you already have).
+2. In that project: **Build > Authentication > Get started**, enable the
+   **Email/Password** sign-in method.
+3. **Build > Firestore Database > Create database** (any region; start in
+   production mode — the rules below lock it down anyway).
+4. **Project settings > General > Your apps**, add a Web app if you don't
+   have one, and copy the config it shows you.
+5. Copy `.env.local.example` to `.env.local` and paste those values in.
+6. Deploy the security rules in `firestore.rules` — easiest way is the
+   Firebase CLI:
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   firebase init firestore   # point it at the existing firestore.rules file
+   firebase deploy --only firestore:rules
+   ```
+   (or paste the contents of `firestore.rules` into the Firestore console's
+   **Rules** tab and publish it there — same effect, no CLI needed)
+7. Install and run:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-Open http://localhost:3000 on your laptop, or visit the same URL from your
-phone's browser once the app is deployed (or on the same Wi-Fi network,
-using your computer's LAN IP — see note below).
+Open http://localhost:3000, create an account (email + password), and
+you're in. Every user who signs up gets their own empty board and master
+resume — nothing is shared between accounts.
 
 ## What's responsive about it
 
@@ -38,24 +60,22 @@ using your computer's LAN IP — see note below).
 - A proper mobile viewport meta tag is set so text isn't tiny and pinch-zoom
   isn't fighting you
 
-## API
+## Accounts and data model
 
-| Method | Path                                       | Purpose                              |
-|--------|---------------------------------------------|----------------------------------------|
-| GET    | `/api/applications`                         | list all applications                  |
-| POST   | `/api/applications`                         | create an application                  |
-| GET    | `/api/applications/:id`                     | get one application                    |
-| PATCH  | `/api/applications/:id`                     | update fields on it                    |
-| DELETE | `/api/applications/:id`                     | delete it                              |
-| POST   | `/api/applications/:id/communications`      | log a communication entry              |
-| POST   | `/api/applications/:id/tailor`              | generate a tailored resume from a job description |
-| GET    | `/api/resume-modules`                       | list master resume modules             |
-| POST   | `/api/resume-modules`                       | create a module                        |
-| PATCH  | `/api/resume-modules/:id`                   | update a module                        |
-| DELETE | `/api/resume-modules/:id`                   | delete a module                        |
-| POST   | `/api/resume-modules/:id/reorder`           | move a module up/down                  |
-| GET    | `/api/resume-modules/full`                  | full assembled text of every module    |
-| GET    | `/api/stats`                                | totals + counts per stage              |
+Sign-in is Firebase Authentication (email/password). Everything a user owns
+lives under two Firestore subcollections keyed by their uid:
+
+```
+users/{uid}/applications/{applicationId}
+users/{uid}/masterModules/{moduleId}
+```
+
+`firestore.rules` only allows a request through when `request.auth.uid`
+matches the `{uid}` segment being read or written, so this is what actually
+keeps accounts separate — not anything in the app code. `lib/api.js` is the
+one file that knows about Firestore; every component just calls
+`api.listApplications()`, `api.createResumeModule(...)`, etc., same as
+before.
 
 ## Modular resume + automatic tailoring
 
@@ -78,16 +98,6 @@ to mirror the posting's language) is a natural upgrade path later without
 changing the API shape, since everything already funnels through
 `selectModules()` in `lib/matching.js`.
 
-## Data
-
-Stored in `data/db.json`, created automatically on first write. Delete it to
-reset. Everything reads/writes exclusively through `lib/db.js` — swap that
-module for Prisma + Postgres later without touching any route or page.
-
-If you have an old `data/db.json` from before the modular resume update, it
-migrates automatically on first read: your old single-string master resume
-becomes one module tagged to always-include, so nothing is lost.
-
 ## Trying it from your phone during local dev
 
 Your phone can't reach `localhost` on your laptop. Find your computer's LAN
@@ -98,10 +108,11 @@ easier than relying on local network access.
 
 ## Known gaps / next steps
 
-- No authentication — matches the brief ("manually create jobs as an
-  administrator")
-- JSON-file storage is fine for a demo but not for concurrent writers — move
-  to a real database before more than one person uses it at once
+- Only email/password sign-in is wired up. Adding Google (or another OAuth
+  provider) is mostly enabling it in the Firebase console and adding one
+  more button in `LoginScreen.js` that calls `signInWithPopup`.
+- No password-reset flow yet (`sendPasswordResetEmail` from `firebase/auth`
+  is the one-function way to add it).
 - No push notifications for follow-ups yet. Options: a Progressive Web App
   (installable, can use the Notifications/Push API) or simply an email
   reminder sent from a scheduled server job
