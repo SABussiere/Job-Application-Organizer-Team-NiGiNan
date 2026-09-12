@@ -93,14 +93,14 @@ export default function ResumeProfileEditor({ onSaved }) {
             value={link.url}
             onChange={e => setLink(i, { url: e.target.value })}
           />
-          <button className="btn-icon" onClick={() => removeLink(i)} title="Remove link">×</button>
+          <button type="button" className="btn-icon" onClick={() => removeLink(i)} title="Remove link">×</button>
         </div>
       ))}
 
       <div className="module-card-bottom">
-        <button className="btn-secondary-inline" onClick={addLink}>+ Add link</button>
+        <button type="button" className="btn-secondary-inline" onClick={addLink}>+ Add link</button>
         <div className="module-actions">
-          <button className="btn-primary" onClick={save}>{saved ? "Saved ✓" : "Save heading"}</button>
+          <button type="button" className="btn-primary" onClick={save}>{saved ? "Saved ✓" : "Save heading"}</button>
         </div>
       </div>
     </div>
