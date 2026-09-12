@@ -2,6 +2,13 @@
 
 import { STAGES, stageMeta } from "@/lib/constants";
 import { followUpBucket, followUpLabel, formatDate } from "@/lib/followups";
+import { UNKNOWN_TYPE } from "@/lib/constants";
+
+// Unknown is the default for both type fields, so showing it would put a
+// meaningless tag on most cards.
+function knownType(value) {
+  return value && value !== UNKNOWN_TYPE;
+}
 
 export default function ApplicationCard({ app, onOpen, onDragStart, onMove, today }) {
   const stage = stageMeta(app.status);
@@ -17,9 +24,16 @@ export default function ApplicationCard({ app, onOpen, onDragStart, onMove, toda
       <button className="card-open" onClick={() => onOpen(app.id)}>
         <span className="position">{app.position}</span>
         <span className="company">{app.company}</span>
-        {(app.jobType || app.requisitionId) && (
+        {(app.jobType || app.requisitionId || knownType(app.employmentType) ||
+          knownType(app.locationType)) && (
           <span className="card-tags">
             {app.jobType ? <span className="job-type-tag">{app.jobType}</span> : null}
+            {knownType(app.employmentType) ? (
+              <span className="plain-tag">{app.employmentType}</span>
+            ) : null}
+            {knownType(app.locationType) ? (
+              <span className="plain-tag">{app.locationType}</span>
+            ) : null}
             {app.requisitionId ? (
               <span className="req-id" title="Requisition ID">{app.requisitionId}</span>
             ) : null}

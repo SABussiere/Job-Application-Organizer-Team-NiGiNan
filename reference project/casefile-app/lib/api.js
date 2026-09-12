@@ -70,7 +70,13 @@ function withApplicationDefaults(app) {
   return {
     requisitionId: "",
     jobType: "",
-    location: "",
+    employmentType: "Unknown",
+    locationType: "Unknown",
+    location: "Unknown",
+    // Coordinates for the Map tab, set when a location is matched against
+    // the gazetteer. Null for free text and for places with no pin
+    // ("Remote"), which the map reports separately rather than dropping.
+    geo: null,
     notes: "",
     jobUrl: "",
     followUpDate: "",
@@ -101,10 +107,15 @@ export const api = {
       position: data.position || "",
       requisitionId: data.requisitionId || "",
       jobType: data.jobType || "",
+      employmentType: data.employmentType || "Unknown",
+      locationType: data.locationType || "Unknown",
       dateApplied: data.dateApplied || new Date().toISOString().slice(0, 10),
       status: data.status || "applied",
       jobUrl: data.jobUrl || "",
-      location: data.location || "",
+      // A location is always either a matched place or explicitly Unknown,
+      // so the map never has to guess what a string meant.
+      location: data.location || "Unknown",
+      geo: data.geo ?? null,
       notes: data.notes || "",
       followUpDate: data.followUpDate || "",
       resumeVersion: data.resumeVersion ?? assembleResumeText(modules),
