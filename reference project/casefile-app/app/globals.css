@@ -64,6 +64,44 @@ html, body {
 }
 .view-link.active { background: var(--manila); color: var(--navy); font-weight: 600; border-color: var(--manila); }
 
+/* ---------- Mobile bottom tab bar ---------- */
+.mobile-tabbar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--navy);
+  border-top: 3px solid var(--offer);
+  padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
+  justify-content: space-around;
+}
+.tab-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: #8894a3;
+  padding: 4px 10px;
+  flex: 1;
+  text-align: center;
+}
+.tab-link.active { color: var(--manila); }
+.tab-icon { font-size: 18px; }
+.tab-label { font-size: 10px; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .desktop-nav { display: none; }
+  .mobile-tabbar { display: flex; }
+  .main { padding-bottom: 90px; }
+  .masthead-inner { padding: 14px 16px; gap: 0; }
+  .brand p { display: none; }
+  .board-toolbar { justify-content: stretch; }
+  .board-toolbar .btn-stamp { width: 100%; padding: 13px; }
+}
+
 .btn-stamp {
   background: var(--offer); color: var(--navy); border: none;
   padding: 10px 18px; border-radius: 4px; font-weight: 700; font-size: 13.5px; cursor: pointer;
@@ -73,8 +111,10 @@ html, body {
 .main { max-width: 1200px; margin: 0 auto; padding: 24px 28px 60px; }
 
 /* ---------- Board ---------- */
+.board-toolbar { display: flex; justify-content: flex-end; margin-bottom: 18px; }
 .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 @media (max-width: 900px) { .board { grid-template-columns: 1fr; } .masthead-inner { padding: 14px 16px; } .main { padding: 18px 16px 50px; } }
+@media (max-width: 640px) { .board { grid-template-columns: 1fr; gap: 14px; } }
 
 .column {
   background: var(--manila); border-radius: 6px; padding: 12px;
@@ -95,10 +135,21 @@ html, body {
 .card .company { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .card .meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--muted); }
 .card .followup-flag { display: inline-block; margin-top: 6px; font-size: 10.5px; background: var(--rejected); color: #fff; padding: 2px 6px; border-radius: 3px; }
+.card .quick-move {
+  margin-top: 10px;
+  width: 100%;
+  font-size: 11.5px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #cfc3a3;
+  background: #fff;
+  color: var(--ink);
+}
 .empty-col { text-align: center; color: var(--muted); font-size: 12px; padding: 20px 8px; font-style: italic; }
 
 /* ---------- Panels (resume / reminders) ---------- */
 .panel { background: var(--manila); border-radius: 6px; padding: 24px 28px; max-width: 780px; }
+@media (max-width: 640px) { .panel { padding: 18px 16px; } }
 .panel h2 { font-family: 'Special Elite', cursive; margin: 0 0 6px; font-size: 20px; }
 .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; max-width: 65ch; }
 
@@ -133,6 +184,17 @@ textarea.resume-input {
   display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto;
 }
 .modal { background: var(--paper); border-radius: 8px; width: 100%; max-width: 700px; padding: 28px 30px 26px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+
+@media (max-width: 640px) {
+  .modal-overlay { padding: 0; align-items: stretch; }
+  .modal { border-radius: 0; max-width: none; min-height: 100vh; padding: 22px 18px 100px; }
+  .mform-row { flex-direction: column; gap: 0; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions button { width: 100%; }
+  .comm-form { flex-direction: column; }
+  .comm-form input[type="date"] { width: 100%; }
+}
+
 .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1; }
 .modal-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--manila-dark); margin-bottom: 20px; }
 .modal-tab-btn { background: none; border: none; padding: 10px 4px; margin-right: 18px; font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }

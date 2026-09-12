@@ -6,6 +6,12 @@ export const metadata = {
   description: "Track applications, tailor resumes, and log employer responses."
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#1B2430"
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">

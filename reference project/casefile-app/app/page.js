@@ -31,6 +31,11 @@ export default function BoardPage() {
     load();
   }
 
+  async function moveApp(id, stage) {
+    await api.updateApplication(id, { status: stage });
+    load();
+  }
+
   async function createNew() {
     const app = await api.createApplication({
       company: "New Company",
@@ -44,7 +49,7 @@ export default function BoardPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18 }}>
+      <div className="board-toolbar">
         <button className="btn-stamp" onClick={createNew}>+ New Application</button>
       </div>
 
@@ -76,6 +81,7 @@ export default function BoardPage() {
                       key={app.id}
                       app={app}
                       onOpen={setOpenId}
+                      onMove={moveApp}
                       onDragStart={(e, id) => e.dataTransfer.setData("text/plain", id)}
                     />
                   ))
