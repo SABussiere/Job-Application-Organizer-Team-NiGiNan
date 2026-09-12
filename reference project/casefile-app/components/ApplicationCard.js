@@ -38,23 +38,28 @@ export default function ApplicationCard({ app, onOpen, onDragStart, onMove, toda
             className={`followup-badge ${bucket}`}
             title={`Follow up on ${formatDate(app.followUpDate)}`}
           >
-            {bucket === "overdue" ? "⚠ " : bucket === "soon" ? "🔔 " : "🗓 "}
+            {bucket === "overdue" ? "\u26a0 " : bucket === "soon" ? "\ud83d\udd14 " : "\ud83d\udcc5 "}
             {followUpLabel(app, today)}
           </span>
         )}
       </button>
-      <select
-        className="quick-move"
-        value={STAGES.includes(app.status) ? app.status : ""}
-        onClick={e => e.stopPropagation()}
-        onChange={e => onMove(app.id, e.target.value)}
-        aria-label={`Move ${app.position} to a different stage`}
-      >
-        {!STAGES.includes(app.status) && <option value="">Move to...</option>}
-        {STAGES.map(s => (
-          <option key={s} value={s}>Move to: {stageMeta(s).label}</option>
-        ))}
-      </select>
+
+      {/* A labelled "Move" control, taken from development: the label carries
+          the verb, so each option stays a bare stage name. */}
+      <div className="move-select">
+        <span>Move</span>
+        <select
+          value={STAGES.includes(app.status) ? app.status : ""}
+          onClick={e => e.stopPropagation()}
+          onChange={e => onMove(app.id, e.target.value)}
+          aria-label={`Move ${app.position} to a different stage`}
+        >
+          {!STAGES.includes(app.status) && <option value="">Choose a stage</option>}
+          {STAGES.map(s => (
+            <option key={s} value={s}>{stageMeta(s).label}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

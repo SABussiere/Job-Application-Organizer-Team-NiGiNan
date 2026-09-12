@@ -1,5 +1,7 @@
 import "./globals.css";
 import Nav from "@/components/Nav";
+import { AuthProvider } from "@/components/AuthProvider";
+import AuthGate from "@/components/AuthGate";
 
 export const metadata = {
   title: "Casefile — Job Application Tracker",
@@ -22,8 +24,12 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <Nav />
-        <main className="main">{children}</main>
+        <AuthProvider>
+          <AuthGate>
+            <Nav />
+            <main className="main">{children}</main>
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

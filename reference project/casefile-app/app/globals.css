@@ -58,6 +58,15 @@ a { color: inherit; }
 }
 
 .views { display: flex; gap: 4px; flex: 1; justify-content: flex-end; }
+
+.nav-account { display: flex; align-items: center; gap: 10px; }
+.nav-email { font-size: 12px; color: var(--muted); }
+@media (max-width: 640px) { .nav-email { display: none; } }
+
+.link-btn {
+  background: none; border: none; padding: 0; color: var(--accent);
+  font-weight: 600; font-size: inherit; cursor: pointer; text-decoration: underline;
+}
 .view-link {
   color: var(--muted);
   padding: 7px 14px;
@@ -173,11 +182,30 @@ a { color: inherit; }
   padding: 2px 6px; border-radius: 4px;
 }
 .card .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--muted); }
-.card .quick-move {
-  margin-top: 10px; width: 100%; font-size: 11.5px;
-  padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--ink);
+.card .move-select {
+  position: relative;
+  margin-top: 10px;
 }
+
+.card .move-select span {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.card .move-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .empty-col {
   text-align: center; color: var(--muted); font-size: 12.5px;
   padding: 22px 10px; border: 1px dashed var(--border); border-radius: 10px;
@@ -559,7 +587,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 @media (max-width: 900px) {
   .mfield input, .mfield select, .mfield textarea,
   .comm-form select, .comm-form input, .link-row input { min-height: 42px; }
-  .card .quick-move { min-height: 40px; font-size: 12.5px; }
+  .card .move-select span { min-height: 40px; padding: 11px 10px; font-size: 12.5px; }
   .match-order button { width: 32px; height: 26px; font-size: 13px; }
   .modal-tab-btn { padding: 10px 12px; }
   .btn-stamp, .btn-primary, .btn-danger, .btn-secondary-inline { min-height: 42px; }
