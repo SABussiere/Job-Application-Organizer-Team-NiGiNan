@@ -28,17 +28,21 @@ export default function ApplicationCard({ app, onOpen, onDragStart, onMove }) {
         </div>
         {overdue ? <div className="followup-flag">Follow up due</div> : null}
       </div>
+      <div className="move-select">
+      <span>Move</span>
       <select
-        className="quick-move"
         value={app.status}
         onClick={e => e.stopPropagation()}
         onChange={e => onMove(app.id, e.target.value)}
         aria-label={`Move ${app.position} to a different stage`}
       >
-        {STAGES.map(s => (
-          <option key={s} value={s}>Move to: {STAGE_META[s].label}</option>
-        ))}
+      {STAGES.map(s => (
+      <option key={s} value={s}>
+        {STAGE_META[s].label}
+      </option>
+      ))}
       </select>
+    </div>
     </div>
   );
 }

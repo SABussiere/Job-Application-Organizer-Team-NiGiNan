@@ -4,6 +4,7 @@
 
 import fs from "fs";
 import path from "path";
+import { assembleResumeText } from "./matching";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
@@ -17,14 +18,34 @@ function ensureDb() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(
       DB_FILE,
-      JSON.stringify({ applications: [], masterResume: "" }, null, 2)
+      JSON.stringify({ applications: [], masterModules: [] }, null, 2)
     );
   }
 }
 
 function read() {
   ensureDb();
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  const state = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+
+  // Migrate from the old single-string masterResume (pre-modules) so
+  // existing local data isn't lost when this ships.
+  if (!Array.isArray(state.masterModules)) {
+    state.masterModules = [];
+    if (state.masterResume && state.masterResume.trim()) {
+      state.masterModules.push({
+        id: uid(),
+        type: "other",
+        title: "Imported resume",
+        content: state.masterResume,
+        tags: [],
+        alwaysInclude: true,
+        order: 0
+      });
+    }
+    delete state.masterResume;
+    write(state);
+  }
+  return state;
 }
 
 function write(data) {
@@ -53,7 +74,9 @@ export const db = {
       location: data.location || "",
       notes: data.notes || "",
       followUpDate: data.followUpDate || "",
-      resumeVersion: data.resumeVersion ?? state.masterResume ?? "",
+      resumeVersion: data.resumeVersion ?? assembleResumeText(state.masterModules),
+      jobDescription: data.jobDescription || "",
+      tailoredFrom: null, // { matchedModuleIds, generatedAt } once tailored
       communications: [],
       createdAt: new Date().toISOString()
     };
@@ -96,15 +119,71 @@ export const db = {
     return state.applications[idx];
   },
 
-  getMasterResume() {
-    return read().masterResume || "";
+  // ---------- Master resume modules ----------
+
+  listMasterModules() {
+    return read().masterModules.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   },
 
-  setMasterResume(text) {
+  getMasterModule(id) {
+    return read().masterModules.find(m => m.id === id) || null;
+  },
+
+  createMasterModule(data) {
     const state = read();
-    state.masterResume = text;
+    const maxOrder = state.masterModules.reduce((max, m) => Math.max(max, m.order ?? 0), -1);
+    const module = {
+      id: uid(),
+      type: data.type || "other",
+      title: data.title || "",
+      content: data.content || "",
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      alwaysInclude: !!data.alwaysInclude,
+      order: maxOrder + 1
+    };
+    state.masterModules.push(module);
     write(state);
-    return state.masterResume;
+    return module;
+  },
+
+  updateMasterModule(id, patch) {
+    const state = read();
+    const idx = state.masterModules.findIndex(m => m.id === id);
+    if (idx === -1) return null;
+    state.masterModules[idx] = { ...state.masterModules[idx], ...patch };
+    write(state);
+    return state.masterModules[idx];
+  },
+
+  deleteMasterModule(id) {
+    const state = read();
+    const next = state.masterModules.filter(m => m.id !== id);
+    const deleted = next.length !== state.masterModules.length;
+    state.masterModules = next;
+    write(state);
+    return deleted;
+  },
+
+  reorderMasterModule(id, direction) {
+    const state = read();
+    const modules = state.masterModules.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const idx = modules.findIndex(m => m.id === id);
+    if (idx === -1) return null;
+    const swapWith = direction === "up" ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= modules.length) return modules;
+    const a = modules[idx].order ?? idx;
+    const b = modules[swapWith].order ?? swapWith;
+    modules[idx].order = b;
+    modules[swapWith].order = a;
+    state.masterModules = modules;
+    write(state);
+    return modules.sort((x, y) => (x.order ?? 0) - (y.order ?? 0));
+  },
+
+  // Kept for the "reset from master" action — full assembled text of every
+  // module, unfiltered.
+  getFullMasterResumeText() {
+    return assembleResumeText(read().masterModules);
   },
 
   getStats() {

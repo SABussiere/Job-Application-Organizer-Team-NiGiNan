@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 
 const LINKS = [
   { href: "/", label: "Case Board", icon: "🗂" },
@@ -12,6 +13,7 @@ const LINKS = [
 
 export default function Nav() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   return (
     <>
@@ -32,6 +34,12 @@ export default function Nav() {
               </Link>
             ))}
           </nav>
+          {user && (
+            <div className="nav-account">
+              <span className="nav-email">{user.email}</span>
+              <button className="btn-secondary-inline" onClick={signOut}>Sign out</button>
+            </div>
+          )}
         </div>
       </header>
 
