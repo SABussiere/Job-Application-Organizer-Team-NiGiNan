@@ -12,6 +12,13 @@ export async function OPTIONS() {
 }
 
 export async function DELETE(request, { params }) {
+  const entry = db.getPendingEmailApplication(params.id);
+  if (entry) {
+    db.markEmailProcessed({
+      messageId: entry.messageId,
+      threadId: entry.threadId
+    });
+  }
   const deleted = db.removePendingEmailApplication(params.id);
   return withCors({ deleted });
 }

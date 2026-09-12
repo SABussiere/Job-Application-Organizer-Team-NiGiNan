@@ -20,18 +20,19 @@ export async function POST() {
   const { messageIds } = await searchApplicationEmails(auth);
 
   const pending = db.listPendingEmailApplications();
-  const applications = db.listApplications();
-  const known = new Set([
+  const processed = db.getProcessedEmailState();
+  const knownMessages = new Set([
     ...pending.map(p => p.messageId),
-    ...applications.flatMap(a => a.emailMessageIds || [])
+    ...processed.messageIds
   ]);
+  const knownThreads = new Set(processed.threadIds);
 
   let queued = 0;
   for (const id of messageIds) {
-    if (known.has(id)) continue;
+    if (knownMessages.has(id)) continue;
 
     const message = await getMessage(auth, id);
-    if (!isLikelyJobEmail(message)) continue;
+    if (knownThreads.has(message.threadId) || !isLikelyJobEmail(message)) continue;
 
     const fields = await extractApplicationFields(message);
     if (!fields) continue;
@@ -42,6 +43,8 @@ export async function POST() {
       extracted: fields,
       receivedAt: message.date
     });
+    knownMessages.add(message.id);
+    knownThreads.add(message.threadId);
     queued++;
   }
 

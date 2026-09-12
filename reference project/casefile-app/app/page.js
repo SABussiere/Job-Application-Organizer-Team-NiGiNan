@@ -1,18 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { STAGES, STAGE_META } from "@/lib/constants";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { STAGES, stageMeta } from "@/lib/constants";
 import { api } from "@/lib/api";
+import { countByBucket, todayStr } from "@/lib/followups";
+import { EMPTY_FILTERS, filterApplications } from "@/lib/filters";
 import ApplicationCard from "@/components/ApplicationCard";
 import ApplicationModal from "@/components/ApplicationModal";
+import BoardFilters from "@/components/BoardFilters";
+import NewApplicationForm from "@/components/NewApplicationForm";
 
 export default function BoardPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [dragOverStage, setDragOverStage] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+
+  // Pinned once per mount so every card, badge and count agrees on what
+  // "today" is even if the tab stays open past midnight.
+  const today = useMemo(() => todayStr(), []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -24,6 +34,12 @@ export default function BoardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const counts = useMemo(() => countByBucket(apps, today), [apps, today]);
+  const visible = useMemo(
+    () => filterApplications(apps, filters, today),
+    [apps, filters, today]
+  );
+
   async function handleDrop(e, stage) {
     e.preventDefault();
     setDragOverStage(null);
@@ -34,6 +50,7 @@ export default function BoardPage() {
   }
 
   async function moveApp(id, stage) {
+    if (!stage) return;
     await api.updateApplication(id, { status: stage });
     load();
   }
@@ -66,15 +83,9 @@ export default function BoardPage() {
     setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
   }
 
-  async function createNew() {
-    const app = await api.createApplication({
-      company: "New Company",
-      position: "New Position",
-      dateApplied: new Date().toISOString().slice(0, 10),
-      status: "applied"
-    });
-    await load();
-    setOpenId(app.id);
+  function handleCreated() {
+    setCreating(false);
+    load();
   }
 
   return (
@@ -85,17 +96,28 @@ export default function BoardPage() {
             <div className="num">{apps.length}</div>
             <div className="label">Total applications</div>
           </div>
-          {STAGES.slice(0, 3).map(stage => (
+          {STAGES.slice(0, 2).map(stage => (
             <div className="stat-card" key={stage}>
               <div className="num">{apps.filter(a => a.status === stage).length}</div>
-              <div className="label">{STAGE_META[stage].label}</div>
+              <div className="label">{stageMeta(stage).label}</div>
             </div>
           ))}
+          <div className={`stat-card ${counts.overdue ? "alert" : ""}`}>
+            <div className="num">{counts.overdue}</div>
+            <div className="label">Follow-ups past due</div>
+          </div>
         </div>
       )}
 
       <div className="board-toolbar">
-        <button className="btn-stamp" onClick={createNew}>+ New application</button>
+        <BoardFilters
+          apps={apps}
+          filters={filters}
+          onChange={setFilters}
+          today={today}
+          resultCount={visible.length}
+        />
+        <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
           {syncing ? "Syncing..." : "📥 Sync Gmail"}
         </button>
@@ -110,8 +132,10 @@ export default function BoardPage() {
       ) : (
         <div className="board">
           {STAGES.map(stage => {
-            const meta = STAGE_META[stage];
-            const stageApps = apps.filter(a => a.status === stage);
+            const meta = stageMeta(stage);
+            const stageApps = visible.filter(a => a.status === stage);
+            const hiddenCount =
+              apps.filter(a => a.status === stage).length - stageApps.length;
             return (
               <div
                 key={stage}
@@ -126,17 +150,25 @@ export default function BoardPage() {
                   <span className="count">{stageApps.length}</span>
                 </div>
                 {stageApps.length === 0 ? (
-                  <div className="empty-col">Nothing here yet</div>
+                  <div className="empty-col">
+                    {hiddenCount > 0 ? "Nothing matches these filters" : "Nothing here yet"}
+                  </div>
                 ) : (
                   stageApps.map(app => (
                     <ApplicationCard
                       key={app.id}
                       app={app}
+                      today={today}
                       onOpen={setOpenId}
                       onMove={moveApp}
                       onDragStart={(e, id) => e.dataTransfer.setData("text/plain", id)}
                     />
                   ))
+                )}
+                {hiddenCount > 0 && stageApps.length > 0 && (
+                  <div className="column-hidden-note">
+                    {hiddenCount} hidden by filters
+                  </div>
                 )}
               </div>
             );
@@ -144,8 +176,21 @@ export default function BoardPage() {
         </div>
       )}
 
+      {creating && (
+        <NewApplicationForm
+          apps={apps}
+          onClose={() => setCreating(false)}
+          onCreated={handleCreated}
+        />
+      )}
+
       {openId && (
-        <ApplicationModal appId={openId} onClose={() => setOpenId(null)} onChanged={load} />
+        <ApplicationModal
+          appId={openId}
+          apps={apps}
+          onClose={() => setOpenId(null)}
+          onChanged={load}
+        />
       )}
     </div>
   );

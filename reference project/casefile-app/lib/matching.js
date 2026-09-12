@@ -4,6 +4,8 @@
 // README; swap in an LLM-backed version later without touching callers,
 // since everything funnels through scoreModules() and selectModules().
 
+import { dateRange } from "./latex";
+
 const STOPWORDS = new Set([
   "a","an","the","and","or","but","if","then","so","of","to","in","on","at",
   "for","with","by","from","as","is","are","was","were","be","been","being",
@@ -52,6 +54,28 @@ export function tokenize(text) {
     .map(normalize);
 }
 
+function bulletsOf(module) {
+  if (!Array.isArray(module.bullets)) return [];
+  return module.bullets.map(b => String(b).trim()).filter(Boolean);
+}
+
+/**
+ * Everything in a module that should count as matchable body text. Bullet
+ * points carry most of the signal now that modules are structured, so they
+ * matter at least as much as the free-form content field.
+ */
+export function moduleSearchText(module) {
+  return [
+    module.title,
+    module.organization,
+    module.location,
+    module.content,
+    ...bulletsOf(module)
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /**
  * Scores every module against a job description.
  * Tag matches count for more than incidental word overlap in body content,
@@ -64,10 +88,10 @@ export function scoreModules(jobDescription, modules) {
   }
 
   return modules.map(module => {
-    const tagTokens = (module.tags || []).map(t => normalize(t.trim()));
+    const tagTokens = (module.tags || []).map(t => normalize(String(t).trim()));
     const matchedTags = (module.tags || []).filter((t, i) => jdTokens.has(tagTokens[i]));
 
-    const contentTokens = new Set(tokenize(`${module.title} ${module.content}`));
+    const contentTokens = new Set(tokenize(moduleSearchText(module)));
     const matchedWords = [...contentTokens].filter(w => jdTokens.has(w));
 
     // Tags are a deliberate signal from the user, so weight them heavily;
@@ -103,12 +127,36 @@ export function selectModules(jobDescription, modules, { maxOptional = 6 } = {})
   };
 }
 
-/** Turns a list of modules into resume text, in order. */
-export function assembleResumeText(modules) {
-  return modules
-    .slice()
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map(m => (m.title ? `${m.title}\n${m.content}` : m.content))
+/** Plain-text rendering of one structured module. */
+export function moduleToText(module) {
+  const lines = [];
+  const heading = [module.title, module.organization].filter(Boolean).join(" — ");
+  if (heading) lines.push(heading);
+
+  const meta = [module.location, dateRange(module)].filter(Boolean).join(" · ");
+  if (meta) lines.push(meta);
+
+  const content = (module.content || "").trim();
+  if (content) lines.push(content);
+
+  bulletsOf(module).forEach(b => lines.push(`- ${b}`));
+
+  return lines.join("\n").trim();
+}
+
+/**
+ * Turns a list of modules into resume text. Sorted by each module's `order`
+ * by default; pass `{ sort: false }` when the caller has already put them in
+ * the order it wants (a hand-reordered tailored resume, for instance).
+ */
+export function assembleResumeText(modules, { sort = true } = {}) {
+  const list = sort
+    ? modules.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    : modules.slice();
+
+  return list
+    .map(moduleToText)
+    .filter(Boolean)
     .join("\n\n")
     .trim();
 }
