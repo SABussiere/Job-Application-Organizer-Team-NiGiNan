@@ -706,22 +706,38 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .suggest-option.highlight { background: var(--accent-soft); color: var(--accent); }
 .field-note { font-size: 11px; color: var(--muted); margin: 5px 0 0; line-height: 1.4; }
 
-/* ---------- Verified location field ---------- */
+/* ---------- Verified location picker ---------- */
 .loc-wrap { position: relative; }
-.loc-field { position: relative; display: flex; align-items: center; }
-.loc-field input { width: 100%; padding-right: 86px; }
+.loc-wrap input {
+  width: 100%; padding: 9px 11px; font-family: inherit; font-size: 13.5px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--surface); color: var(--ink);
+}
+
+/* Settled state: what is stored, plus how it was arrived at. */
+.loc-current {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; min-height: 40px; padding: 9px 11px; text-align: left;
+  font-family: inherit; font-size: 13.5px; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--ink);
+}
+.loc-current:hover { border-color: var(--border-strong); }
+.loc-current.legacy { border-color: var(--offer); background: #FEFBF4; }
+.loc-current.unknown .loc-current-text { color: var(--muted); }
+.loc-current-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .loc-badge {
-  position: absolute; right: 7px; font-size: 10px; font-weight: 700;
-  letter-spacing: 0.03em; text-transform: uppercase;
-  padding: 3px 7px; border-radius: 4px; pointer-events: none; white-space: nowrap;
+  flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+  text-transform: uppercase; padding: 3px 7px; border-radius: 4px;
 }
 .loc-badge.verified { background: var(--accent-soft); color: var(--accent); }
-.loc-badge.unverified { background: #FEF6E7; color: #9A6400; }
-.loc-badge.placeless { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.loc-badge.unknown { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+.loc-badge.legacy { background: #FEF6E7; color: #9A6400; }
 
 .loc-panel {
   position: absolute; z-index: 55; top: calc(100% + 3px); left: 0; right: 0;
-  padding: 4px; max-height: 250px; overflow-y: auto;
+  padding: 4px; max-height: 290px; overflow-y: auto;
   background: var(--surface); border: 1px solid var(--border-strong);
   border-radius: 9px; box-shadow: 0 10px 26px rgba(0,0,0,0.14);
 }
@@ -733,8 +749,28 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .loc-option.highlight { background: var(--accent-soft); }
 .loc-option-main { font-weight: 600; }
 .loc-option-note { font-size: 11.5px; color: var(--muted); }
-.loc-busy, .loc-error { font-size: 12px; margin: 6px 10px; color: var(--muted); }
-.loc-error { color: var(--rejected); }
+
+.loc-note { font-size: 12px; margin: 7px 10px; color: var(--muted); line-height: 1.5; }
+.loc-note.error { color: var(--rejected); }
+.loc-note.warn { color: #9A6400; }
+
+.loc-panel-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 4px; padding: 8px 10px 4px; border-top: 1px solid var(--border);
+}
+.loc-unknown {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  padding: 7px 11px; min-height: 36px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--muted);
+}
+.loc-unknown:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Neutral tag for the fixed-vocabulary fields on a card. */
+.card .plain-tag {
+  font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+}
 
 /* ---------- Map tab ---------- */
 .map-header {

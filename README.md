@@ -96,10 +96,17 @@ before.
 
 ## Verified locations
 
-Typing a location checks it against a real gazetteer instead of trusting free
-text. Pick a suggestion and the case stores both the canonical string
-("Toronto, ON, Canada") and a `geo` object with the city, region, country and
-coordinates. The coordinates are what put the case on the Map tab.
+A location is either a place that was matched against a real gazetteer, or
+explicitly **Unknown**. There is no third option: what you type is a search
+query, not a value, and the case only takes a location when you pick a match
+or choose Unknown. Abandoning a half-typed query restores whatever was set
+before.
+
+That rule is the reason the Map tab can be trusted. Every location on the
+board is either a real point or an admitted blank, never a plausible-looking
+string nobody checked. Picking a match stores the canonical string
+("Toronto, ON, Canada") plus a `geo` object with city, region, country and
+coordinates; Unknown stores no coordinates and so never appears on the map.
 
 The provider is [Open-Meteo's geocoding API][om]: no API key, no billing
 account, nothing for a teammate to configure, and it sends
@@ -111,22 +118,45 @@ the way postings write it; elsewhere the full region name is kept.
 Everything goes through `searchPlaces()` in `lib/geocode.js`, so moving to a
 keyed provider later means rewriting one function.
 
-Three things it deliberately does not do:
+Two conveniences: verified locations already on your board are offered
+before any network call, so a repeat is one tap and keeps its coordinates;
+and whether a job is remote is a separate field (see below), so "Remote"
+never has to be typed into the location.
 
-- **It never blocks a save.** Text the gazetteer does not recognise is
-  accepted and badged `unverified`. A location can be newer than the dataset,
-  or spelled in a way the provider misses, and the field should not argue
-  with you about where you applied.
-- **It treats "Remote" as valid.** Remote, Hybrid, Anywhere and similar skip
-  the lookup entirely and badge as `no pin`, rather than being reported as
-  unverifiable places.
-- **It offers locations already on your board first**, before any network
-  call, so a repeat location is one tap and keeps its coordinates.
+**Legacy values.** Cases saved before checking was required can still hold
+specific-looking text with no coordinates. Those are badged `needs checking`,
+counted separately on the map, and cannot be re-saved: the case modal refuses
+to save until the location is either matched or set to Unknown. Normalising
+them automatically would have meant either inventing coordinates or throwing
+away what someone wrote.
 
-Coverage is a genuine limit. The dataset is place-name based, so a city
-listed under a different official name will not match what you typed
+Coverage is a genuine limit. The dataset matches on place name, so a city
+commonly known by another name will not be found under the one you type
 (searching Bangalore finds a town in Pakistan; Bengaluru finds the Indian
-city). The unverified badge is the escape hatch.
+city). Unknown is the escape hatch, and a keyed provider would handle
+aliases properly.
+
+## Employment and location type
+
+Two short fixed vocabularies, separate from the free-text `jobType` that
+describes the kind of work:
+
+| Field | Values |
+|-------|--------|
+| `employmentType` | Unknown, Full-time, Part-time, Contract, Internship |
+| `locationType` | Unknown, On-site, Hybrid, Remote |
+
+Both default to Unknown, because a posting does not always say, and both are
+multi-select filters on the board. Values are stored as the label you see
+rather than as codes, so filters, chips and cards need no lookup table; the
+tradeoff is that renaming a label would orphan existing data, which is the
+right trade at this size. Neither shows as a tag on a card while it is
+Unknown, since that would put a meaningless label on most of them.
+
+Splitting `locationType` out is what lets the location field stay strict.
+A remote job can still be anchored to a city and appear on the map, and a
+job whose city you do not know yet is Unknown regardless of whether it is
+remote.
 
 [om]: https://open-meteo.com/en/docs/geocoding-api
 
@@ -151,9 +181,9 @@ projection, with pins on the far side hidden by comparing each point's
 `geoDistance` to the centre of the visible hemisphere.
 
 A panel under the case list accounts for every case that is **not** drawn,
-split by why: no location set, a location with no fixed place, or text that
-was never matched to a place. A map that silently omits cases would be worse
-than no map, so the count is always visible.
+split into locations that are Unknown and legacy text that was never checked.
+A map that silently omits cases would be worse than no map, so the count is
+always visible.
 
 ## Structured modules and LaTeX output
 
@@ -250,6 +280,8 @@ Alongside the chips the board filters on:
 | Company | multi-select | you routinely want several at once |
 | Position | multi-select | the exact title, when you know it |
 | Job type | multi-select | the kind of role, regardless of wording |
+| Employment | multi-select | full-time versus internship versus contract |
+| On-site / remote | multi-select | how the work happens |
 | Location | multi-select | "Toronto or remote" is one question |
 | Requisition ID | single text, substring match | an ID names exactly one posting |
 | Date applied | from/to range, with 7/30/90-day presets | |
@@ -339,9 +371,9 @@ easier than relying on local network access.
 - Consider turning this into a PWA (manifest.json + service worker) for an
   "install to home screen" feel without needing a native app
 - Location lookup matches on place name, so a city commonly known by another
-  name will not be found under the one you typed. A keyed provider (Google
-  Places, Mapbox) handles aliases and partial input far better; the swap is
-  one function in `lib/geocode.js`
+  name will not be found under the one you typed, and Unknown is the only way
+  past it. A keyed provider (Google Places, Mapbox) handles aliases and
+  partial input far better; the swap is one function in `lib/geocode.js`
 - The map plots cities, not employers. Pinning an actual office address would
   need a provider that geocodes street addresses, which the current keyless
   one does not do

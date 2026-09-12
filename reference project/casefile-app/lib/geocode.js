@@ -12,6 +12,21 @@
 
 const ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 
+/**
+ * The only location value allowed that isn't a matched place. A case always
+ * has one or the other, so the board never holds a location that looks
+ * specific but was never checked. Unknown carries no coordinates and so never
+ * appears on the map.
+ *
+ * Whether a job is remote is a separate question, answered by the
+ * `locationType` field, not by putting "Remote" in this one.
+ */
+export const UNKNOWN_LOCATION = "Unknown";
+
+export function isUnknownLocation(text) {
+  return String(text || "").trim().toLowerCase() === UNKNOWN_LOCATION.toLowerCase();
+}
+
 // Province and state abbreviations, so a verified place reads the way job
 // postings write it ("Toronto, ON, Canada") instead of spelling out the
 // region. Anywhere else keeps its full region name.
@@ -51,17 +66,6 @@ const REGION_CODES = {
   }
 };
 
-/**
- * Locations with no point on a map, which are still perfectly valid answers
- * to "where is this job". Matched case-insensitively; these skip the
- * geocoder entirely rather than being reported as unverifiable.
- */
-export const PLACELESS = ["remote", "fully remote", "hybrid", "anywhere", "various"];
-
-export function isPlaceless(text) {
-  return PLACELESS.includes(String(text || "").trim().toLowerCase());
-}
-
 export function regionCode(region, countryCode) {
   const table = REGION_CODES[countryCode];
   return (table && table[region]) || region || "";
@@ -91,13 +95,12 @@ function normalize(result) {
 
 /**
  * Candidate places for typed text, best match first. Returns [] for a blank
- * query, for a placeless value like "Remote", and for text the provider
- * doesn't recognise — the caller decides whether that means "keep typing" or
- * "this isn't a real place".
+ * query and for text the provider doesn't recognise, which the caller shows
+ * as "no match" rather than storing.
  */
 export async function searchPlaces(text, { count = 6, signal } = {}) {
   const query = String(text || "").trim();
-  if (query.length < 2 || isPlaceless(query)) return [];
+  if (query.length < 2 || isUnknownLocation(query)) return [];
 
   // Only the first segment is a place name the provider knows: someone
   // typing "Toronto, ON" should still match Toronto.
@@ -116,9 +119,8 @@ export async function searchPlaces(text, { count = 6, signal } = {}) {
 }
 
 /**
- * The geo object stored alongside an application's location string. Null
- * whenever there's nothing to put on a map, which the Map tab treats as
- * "not plottable" rather than as an error.
+ * The geo object stored alongside a verified location. Null when there is no
+ * point to plot, which is what keeps Unknown off the map.
  */
 export function toGeo(place) {
   if (!place || place.lat === null || place.lon === null) return null;
@@ -132,10 +134,21 @@ export function toGeo(place) {
   };
 }
 
-/** How a stored location should be described in the UI. */
+/**
+ * How a stored location should be described.
+ *
+ * "legacy" is text saved before verification was required: specific-looking,
+ * but never matched to a place. It can't be created any more, and the UI asks
+ * for it to be resolved rather than silently keeping it.
+ */
 export function locationStatus(location, geo) {
   const text = String(location || "").trim();
-  if (!text) return "empty";
-  if (isPlaceless(text)) return "placeless";
-  return geo ? "verified" : "unverified";
+  if (geo) return "verified";
+  if (!text || isUnknownLocation(text)) return "unknown";
+  return "legacy";
+}
+
+/** Whether a location may be saved: a matched place, or explicitly Unknown. */
+export function isLocationResolved(location, geo) {
+  return locationStatus(location, geo) !== "legacy";
 }

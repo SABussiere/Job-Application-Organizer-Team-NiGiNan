@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { JOB_TYPE_SUGGESTIONS, STAGES, stageMeta } from "@/lib/constants";
+import {
+  EMPLOYMENT_TYPES,
+  JOB_TYPE_SUGGESTIONS,
+  LOCATION_TYPES,
+  STAGES,
+  stageMeta
+} from "@/lib/constants";
 import { todayStr } from "@/lib/followups";
 import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
@@ -21,7 +27,9 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
     requisitionId: "",
     dateApplied: todayStr(),
     status: "applied",
-    location: "",
+    employmentType: "Unknown",
+    locationType: "Unknown",
+    location: "Unknown",
     geo: null,
     jobUrl: "",
     followUpDate: "",
@@ -59,7 +67,6 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
   const suggest = {
     company: suggestionValues(apps, "company"),
     position: suggestionValues(apps, "position"),
-    location: suggestionValues(apps, "location"),
     jobType: suggestionValues(apps, "jobType", JOB_TYPE_SUGGESTIONS)
   };
 
@@ -137,6 +144,29 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
               of role, not the exact wording.
             </p>
           </div>
+          <div className="mfield">
+            <label htmlFor="na-employment">Employment</label>
+            <select
+              id="na-employment"
+              value={form.employmentType}
+              onChange={e => set("employmentType", e.target.value)}
+            >
+              {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="mfield">
+            <label htmlFor="na-loctype">On-site / remote</label>
+            <select
+              id="na-loctype"
+              value={form.locationType}
+              onChange={e => set("locationType", e.target.value)}
+            >
+              {LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="mform-row">
           <div className="mfield">
             <label htmlFor="na-location">Location</label>
             <LocationInput

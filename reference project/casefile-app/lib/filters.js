@@ -10,6 +10,8 @@ export const EMPTY_FILTERS = {
   companies: [],
   positions: [],
   jobTypes: [],
+  employmentTypes: [],
+  locationTypes: [],
   locations: [],
   // Single-value: a requisition ID identifies one posting, so there's no
   // sense in asking for several. Matched as a case-insensitive substring so
@@ -25,6 +27,8 @@ export const MULTI_FILTERS = [
   { key: "companies", field: "company", label: "Company" },
   { key: "positions", field: "position", label: "Position" },
   { key: "jobTypes", field: "jobType", label: "Job type" },
+  { key: "employmentTypes", field: "employmentType", label: "Employment" },
+  { key: "locationTypes", field: "locationType", label: "On-site / remote" },
   { key: "locations", field: "location", label: "Location" }
 ];
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { STAGES, stageMeta } from "@/lib/constants";
-import { isPlaceless } from "@/lib/geocode";
+import { locationStatus } from "@/lib/geocode";
 import { formatDate, todayStr } from "@/lib/followups";
 import ApplicationModal from "@/components/ApplicationModal";
 import WorldMap, { groupByPlace } from "@/components/WorldMap";
@@ -36,16 +36,14 @@ export default function MapPage() {
   const plotted = useMemo(() => groupByPlace(shown), [shown]);
   const pinnedCount = plotted.reduce((n, p) => n + p.apps.length, 0);
 
-  // Cases that can't be drawn, split by why: no location at all, a location
-  // with no fixed place ("Remote"), or text that was never matched against
-  // the gazetteer.
+  // Cases that can't be drawn. A location is either a matched place or
+  // Unknown, so the only other case is text saved before checking existed.
   const unplottable = useMemo(() => {
-    const groups = { empty: [], placeless: [], unverified: [] };
+    const groups = { unknown: [], legacy: [] };
     shown.forEach(a => {
       if (a.geo) return;
-      if (!a.location || !a.location.trim()) groups.empty.push(a);
-      else if (isPlaceless(a.location)) groups.placeless.push(a);
-      else groups.unverified.push(a);
+      if (locationStatus(a.location, a.geo) === "legacy") groups.legacy.push(a);
+      else groups.unknown.push(a);
     });
     return groups;
   }, [shown]);
@@ -145,32 +143,26 @@ export default function MapPage() {
             ) : (
               <p className="hint">
                 {plotted.length === 0
-                  ? "No cases have a verified location yet. Open a case and pick a suggestion in its Location field to put it on the map."
+                  ? "No cases have a verified location yet. Open a case and pick a city in its Location field to put it on the map."
                   : "Select a pin to list the cases there. Drag to move, and use + and − to zoom."}
               </p>
             )}
 
-            {(unplottable.empty.length > 0 ||
-              unplottable.placeless.length > 0 ||
-              unplottable.unverified.length > 0) && (
+            {(unplottable.unknown.length > 0 || unplottable.legacy.length > 0) && (
               <div className="map-missing">
                 <h4>Not on the map</h4>
-                {unplottable.unverified.length > 0 && (
+                {unplottable.unknown.length > 0 && (
                   <p>
-                    <strong>{unplottable.unverified.length}</strong> with a location
-                    that was never matched to a place. Reopen the case and pick a
-                    suggestion to plot it.
+                    <strong>{unplottable.unknown.length}</strong> with an unknown
+                    location. There is no point to plot, which is the whole
+                    purpose of Unknown.
                   </p>
                 )}
-                {unplottable.placeless.length > 0 && (
+                {unplottable.legacy.length > 0 && (
                   <p>
-                    <strong>{unplottable.placeless.length}</strong> remote or with no
-                    fixed location, so there is nothing to pin.
-                  </p>
-                )}
-                {unplottable.empty.length > 0 && (
-                  <p>
-                    <strong>{unplottable.empty.length}</strong> with no location set.
+                    <strong>{unplottable.legacy.length}</strong> saved before
+                    locations were checked. Open the case and pick a match to plot
+                    it, or set it to Unknown.
                   </p>
                 )}
               </div>

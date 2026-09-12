@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { COMM_TYPES, JOB_TYPE_SUGGESTIONS, STAGES, SECTION_TITLES, stageMeta } from "@/lib/constants";
+import {
+  COMM_TYPES,
+  EMPLOYMENT_TYPES,
+  JOB_TYPE_SUGGESTIONS,
+  LOCATION_TYPES,
+  STAGES,
+  SECTION_TITLES,
+  stageMeta
+} from "@/lib/constants";
+import { isLocationResolved } from "@/lib/geocode";
 import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
 import LocationInput from "@/components/LocationInput";
@@ -66,6 +75,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const [commDate, setCommDate] = useState(new Date().toISOString().slice(0, 10));
   const [commText, setCommText] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -93,8 +103,10 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
           dateApplied: data.dateApplied || "",
           status: data.status,
           followUpDate: data.followUpDate || "",
-          location: data.location || "",
+          location: data.location || "Unknown",
           geo: data.geo || null,
+          employmentType: data.employmentType || "Unknown",
+          locationType: data.locationType || "Unknown",
           jobUrl: data.jobUrl || "",
           notes: data.notes || ""
         });
@@ -119,7 +131,6 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const suggest = {
     company: suggestionValues(apps, "company"),
     position: suggestionValues(apps, "position"),
-    location: suggestionValues(apps, "location"),
     jobType: suggestionValues(apps, "jobType", JOB_TYPE_SUGGESTIONS)
   };
 
@@ -128,6 +139,15 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const selectedModules = selectedRows.map(r => r.module);
 
   async function saveDetails() {
+    // Locations saved before checking was required can still be sitting on a
+    // case. Rather than quietly re-saving one, ask for it to be resolved.
+    if (!isLocationResolved(form.location, form.geo)) {
+      setDetailsError(
+        "This location was never checked against a real place. Pick a match, or set it to Unknown."
+      );
+      return;
+    }
+    setDetailsError("");
     await api.updateApplication(appId, form);
     onChanged();
     onClose();
@@ -276,6 +296,26 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
                 />
               </div>
               <div className="mfield">
+                <label>Employment</label>
+                <select
+                  value={form.employmentType}
+                  onChange={e => setForm({ ...form, employmentType: e.target.value })}
+                >
+                  {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="mfield">
+                <label>On-site / remote</label>
+                <select
+                  value={form.locationType}
+                  onChange={e => setForm({ ...form, locationType: e.target.value })}
+                >
+                  {LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="mform-row">
+              <div className="mfield">
                 <label>Location</label>
                 <LocationInput
                   value={form.location}
@@ -321,6 +361,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
               <label>Notes</label>
               <textarea rows={4} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Referral, salary range, interview prep notes..." />
             </div>
+            {detailsError && <p className="tailor-error">{detailsError}</p>}
             <div className="modal-actions">
               <button className="btn-danger" onClick={deleteCase}>Delete case</button>
               <button className="btn-primary" onClick={saveDetails}>Save changes</button>
