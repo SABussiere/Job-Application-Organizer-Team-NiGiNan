@@ -18,6 +18,7 @@ export default function BoardPage() {
   const [dragOverStage, setDragOverStage] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [gmailConnected, setGmailConnected] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // Pinned once per mount so every card, badge and count agrees on what
@@ -33,6 +34,13 @@ export default function BoardPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetch("/api/auth/google/status")
+      .then(res => res.json())
+      .then(data => setGmailConnected(data.connected))
+      .catch(() => setGmailConnected(false));
+},  []);
 
   const counts = useMemo(() => countByBucket(apps, today), [apps, today]);
   const visible = useMemo(
@@ -80,6 +88,7 @@ export default function BoardPage() {
 
   async function disconnectGmail() {
     await fetch("/api/auth/google", { method: "DELETE" });
+    setGmailConnected(false);
     setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
   }
 
@@ -119,11 +128,15 @@ export default function BoardPage() {
         />
         <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Syncing..." : "📥 Sync Gmail"}
+          {syncing ? "Scanning..." : "📥 Scan Gmail"}
         </button>
-        <button className="btn-secondary-inline" onClick={disconnectGmail}>
-          Disconnect Gmail
-        </button>
+
+        {gmailConnected && (
+          <button className="btn-secondary-inline" onClick={disconnectGmail}>
+            Disconnect Gmail
+          </button>
+        )}
+        
         {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
 
