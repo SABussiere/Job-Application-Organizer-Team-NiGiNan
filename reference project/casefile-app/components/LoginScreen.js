@@ -31,55 +31,69 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="panel" style={{ maxWidth: 380, margin: "60px auto" }}>
-      <h2>{mode === "signin" ? "Sign in" : "Create your account"}</h2>
-      <p className="hint">
-        {mode === "signin"
-          ? "Your cases and master resume are private to your account."
-          : "Takes a few seconds — just an email and a password."}
-      </p>
-      <form onSubmit={submit}>
-        <div className="mfield" style={{ marginBottom: 14 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-          />
+    <div className="auth-screen">
+      <div className="auth-glow auth-glow-a" aria-hidden="true" />
+      <div className="auth-glow auth-glow-b" aria-hidden="true" />
+      <div className="auth-glow auth-glow-c" aria-hidden="true" />
+
+      <div className="auth-shell">
+        <img src="/logo.png" alt="Casefile logo" className="auth-badge" />
+        <div className="auth-title-row">
+          <p className="auth-brand">Casefile</p>
+          <p className="auth-tagline">Track applications, tailor resumes, land the offer.</p>
         </div>
-        <div className="mfield" style={{ marginBottom: 14 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            required
-            minLength={6}
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-          />
+
+        <div className="auth-card">
+          <h2>{mode === "signin" ? "Sign in" : "Create your account"}</h2>
+          <p className="hint">
+            {mode === "signin"
+              ? "Your cases and master resume are private to your account."
+              : "Takes a few seconds — just an email and a password."}
+          </p>
+          <form onSubmit={submit}>
+            <div className="mfield" style={{ marginBottom: 14 }}>
+              <label>Email</label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="mfield" style={{ marginBottom: 14 }}>
+              <label>Password</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+            {error && <p className="tailor-error" style={{ marginBottom: 12 }}>{error}</p>}
+            <button className="btn-primary" type="submit" disabled={busy} style={{ width: "100%" }}>
+              {busy ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
+            </button>
+          </form>
+          <p className="hint" style={{ marginTop: 16, marginBottom: 0 }}>
+            {mode === "signin" ? (
+              <>No account yet?{" "}
+                <button type="button" className="link-btn" onClick={() => { setMode("signup"); setError(""); }}>
+                  Create one
+                </button>
+              </>
+            ) : (
+              <>Already have an account?{" "}
+                <button type="button" className="link-btn" onClick={() => { setMode("signin"); setError(""); }}>
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
-        {error && <p className="tailor-error" style={{ marginBottom: 12 }}>{error}</p>}
-        <button className="btn-primary" type="submit" disabled={busy} style={{ width: "100%" }}>
-          {busy ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
-      </form>
-      <p className="hint" style={{ marginTop: 16, marginBottom: 0 }}>
-        {mode === "signin" ? (
-          <>No account yet?{" "}
-            <button type="button" className="link-btn" onClick={() => { setMode("signup"); setError(""); }}>
-              Create one
-            </button>
-          </>
-        ) : (
-          <>Already have an account?{" "}
-            <button type="button" className="link-btn" onClick={() => { setMode("signin"); setError(""); }}>
-              Sign in
-            </button>
-          </>
-        )}
-      </p>
+      </div>
     </div>
   );
 }
