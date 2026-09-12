@@ -4,14 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { STAGES, stageMeta } from "@/lib/constants";
 import { locationStatus } from "@/lib/geocode";
-import { formatDate, todayStr } from "@/lib/followups";
+import { todayStr } from "@/lib/followups";
 import ApplicationModal from "@/components/ApplicationModal";
 import WorldMap, { groupByPlace } from "@/components/WorldMap";
+import PlaceCaseList from "@/components/PlaceCaseList";
 
 export default function MapPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("flat");
+  const [view, setView] = useState("pins");
   const [stages, setStages] = useState(STAGES);
   const [selected, setSelected] = useState(null);
   const [openId, setOpenId] = useState(null);
@@ -70,15 +72,27 @@ export default function MapPage() {
               : `${pinnedCount} of ${shown.length} cases have a verified location and appear below.`}
           </p>
         </div>
-        <div className="map-mode" role="group" aria-label="Map projection">
-          <button
-            className={`output-tab ${mode === "flat" ? "active" : ""}`}
-            onClick={() => setMode("flat")}
-          >Flat map</button>
-          <button
-            className={`output-tab ${mode === "globe" ? "active" : ""}`}
-            onClick={() => setMode("globe")}
-          >Globe</button>
+        <div className="map-switches">
+          <div className="map-mode" role="group" aria-label="Map projection">
+            <button
+              className={`output-tab ${mode === "flat" ? "active" : ""}`}
+              onClick={() => setMode("flat")}
+            >Flat map</button>
+            <button
+              className={`output-tab ${mode === "globe" ? "active" : ""}`}
+              onClick={() => setMode("globe")}
+            >Globe</button>
+          </div>
+          <div className="map-mode" role="group" aria-label="Map encoding">
+            <button
+              className={`output-tab ${view === "pins" ? "active" : ""}`}
+              onClick={() => setView("pins")}
+            >Pins</button>
+            <button
+              className={`output-tab ${view === "heat" ? "active" : ""}`}
+              onClick={() => setView("heat")}
+            >Heat</button>
+          </div>
         </div>
       </div>
 
@@ -109,6 +123,7 @@ export default function MapPage() {
           <WorldMap
             apps={shown}
             mode={mode}
+            view={view}
             selectedKey={selected}
             onSelectPlace={place => setSelected(place.key)}
           />
@@ -120,31 +135,24 @@ export default function MapPage() {
                   <h3>
                     {selectedPlace.geo.city}
                     {selectedPlace.geo.country ? `, ${selectedPlace.geo.country}` : ""}
+                    <span className="map-side-count">
+                      {selectedPlace.apps.length}{" "}
+                      {selectedPlace.apps.length === 1 ? "case" : "cases"}
+                    </span>
                   </h3>
                   <button className="btn-link" onClick={() => setSelected(null)}>Clear</button>
                 </div>
-                <ul className="map-case-list">
-                  {selectedPlace.apps.map(app => (
-                    <li key={app.id}>
-                      <button onClick={() => setOpenId(app.id)}>
-                        <span className="map-case-pos">{app.position}</span>
-                        <span className="map-case-co">{app.company}</span>
-                        <span
-                          className="map-case-stage"
-                          style={{ color: stageMeta(app.status).color }}
-                        >
-                          {stageMeta(app.status).label} · applied {formatDate(app.dateApplied)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <PlaceCaseList
+                  place={selectedPlace}
+                  today={today}
+                  onOpen={setOpenId}
+                />
               </>
             ) : (
               <p className="hint">
                 {plotted.length === 0
                   ? "No cases have a verified location yet. Open a case and pick a city in its Location field to put it on the map."
-                  : "Select a pin to list the cases there. Drag to move, and use + and − to zoom."}
+                  : "Select a pin to read the cases there. Drag to move, and use + and − to zoom."}
               </p>
             )}
 

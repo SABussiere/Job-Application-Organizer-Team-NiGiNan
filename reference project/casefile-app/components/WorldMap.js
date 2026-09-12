@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  geoContains,
   geoDistance,
   geoEqualEarth,
   geoGraticule10,
@@ -11,6 +12,7 @@ import {
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-110m.json";
 import { STAGES, stageMeta } from "@/lib/constants";
+import { HEAT_EMPTY, heatColor, usedBins } from "@/lib/mapScale";
 
 // Country outlines are a bundled TopoJSON file (108KB at 110m resolution),
 // not map tiles: no tile server, no API key, and the map works offline.
@@ -23,6 +25,8 @@ const GLOBE = { width: 620, height: 620 };
 // reads as the most useful headline for a pin.
 const STAGE_RANK = { offer: 4, interview: 3, applied: 2, rejected: 1 };
 
+// rotate([lambda, phi]) centres the point [-lambda, -phi], so [90, -20]
+// looks at longitude -90, latitude 20: North America.
 const INITIAL_ROTATION = [90, -20];
 
 function dominantStatus(apps) {
@@ -46,19 +50,37 @@ export function groupByPlace(apps) {
   return [...groups.values()].map(g => ({ ...g, status: dominantStatus(g.apps) }));
 }
 
-export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
+/**
+ * Applications per country, by testing each pin against the country polygons.
+ * Point-in-polygon rather than matching country names, because the gazetteer
+ * and the basemap name countries differently ("United States" against
+ * "United States of America"), and a name mismatch would silently lose a
+ * country from the heat map.
+ */
+function countByCountry(places) {
+  const counts = new Map();
+  places.forEach(place => {
+    const point = [place.geo.lon, place.geo.lat];
+    const country = COUNTRIES.find(f => geoContains(f, point));
+    if (!country) return;
+    counts.set(country.id, (counts.get(country.id) || 0) + place.apps.length);
+  });
+  return counts;
+}
+
+export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey }) {
   const isGlobe = mode === "globe";
+  const isHeat = view === "heat";
   const size = isGlobe ? GLOBE : FLAT;
 
-  // rotate([lambda, phi]) centres the point [-lambda, -phi], so [90, -20]
-  // looks at longitude -90, latitude 20: North America.
   const [rotation, setRotation] = useState(INITIAL_ROTATION);
   const [offset, setOffset] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const dragRef = useRef(null);
-  const svgRef = useRef(null);
 
   const places = useMemo(() => groupByPlace(apps), [apps]);
+  const counts = useMemo(() => (isHeat ? countByCountry(places) : new Map()), [isHeat, places]);
+  const bins = useMemo(() => usedBins(counts), [counts]);
 
   const projection = useMemo(() => {
     if (isGlobe) {
@@ -125,6 +147,10 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
     setZoom(1);
   }
 
+  // Pins stay clickable in heat view, just smaller, since selecting one is
+  // how you read the cases behind a shaded country.
+  const pinScale = isHeat ? 0.7 : 1;
+
   return (
     <div className="map-stage">
       <div className="map-controls">
@@ -134,11 +160,14 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
       </div>
 
       <svg
-        ref={svgRef}
         className={`world-map ${isGlobe ? "globe" : "flat"}`}
         viewBox={`0 0 ${size.width} ${size.height}`}
         role="img"
-        aria-label={`${places.length} locations with applications`}
+        aria-label={
+          isHeat
+            ? `Applications per country across ${counts.size} countries`
+            : `${places.length} locations with applications`
+        }
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -146,9 +175,23 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
       >
         {isGlobe && <path className="map-ocean" d={sphere} />}
         <path className="map-graticule" d={graticule} />
-        {COUNTRIES.map(f => (
-          <path key={f.id} className="map-country" d={path(f)} />
-        ))}
+
+        {COUNTRIES.map(f => {
+          const count = counts.get(f.id) || 0;
+          return (
+            <path
+              key={f.id}
+              className={`map-country ${isHeat && count ? "has-data" : ""}`}
+              d={path(f)}
+              style={isHeat ? { fill: heatColor(count) } : undefined}
+            >
+              {isHeat && count > 0 && (
+                <title>{`${f.properties.name}: ${count} ${count === 1 ? "application" : "applications"}`}</title>
+              )}
+            </path>
+          );
+        })}
+
         {isGlobe && <path className="map-outline" d={sphere} />}
 
         {places.map(place => {
@@ -157,7 +200,7 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
           if (!point) return null;
           const [x, y] = point;
           const count = place.apps.length;
-          const radius = 5 + Math.min(7, (count - 1) * 2.2);
+          const radius = (5 + Math.min(7, (count - 1) * 2.2)) * pinScale;
           const isSelected = selectedKey === place.key;
           return (
             <g
@@ -173,13 +216,12 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
                 {`${place.geo.city}${place.geo.country ? `, ${place.geo.country}` : ""} — ` +
                   `${count} ${count === 1 ? "case" : "cases"}`}
               </title>
-              <circle className="map-pin-halo" r={radius + 5} />
               <circle
                 className="map-pin-dot"
                 r={radius}
                 style={{ fill: stageMeta(place.status).color }}
               />
-              {count > 1 && (
+              {count > 1 && !isHeat && (
                 <text className="map-pin-count" dy="0.35em">{count}</text>
               )}
             </g>
@@ -187,18 +229,44 @@ export default function WorldMap({ apps, mode, onSelectPlace, selectedKey }) {
         })}
       </svg>
 
-      <div className="map-legend">
-        {STAGES.map(s => (
-          <span className="map-legend-item" key={s}>
-            <span className="map-legend-dot" style={{ background: stageMeta(s).color }} />
-            {stageMeta(s).label}
+      {isHeat ? (
+        <div className="map-legend">
+          <span className="map-legend-title">Applications per country</span>
+          <span className="heat-scale">
+            {bins.length === 0 ? (
+              <span className="map-legend-note">Nothing plotted yet.</span>
+            ) : (
+              bins.map(b => (
+                <span className="heat-step" key={b.label}>
+                  <span className="heat-swatch" style={{ background: b.color }} />
+                  {b.label}
+                </span>
+              ))
+            )}
+            <span className="heat-step">
+              <span className="heat-swatch" style={{ background: HEAT_EMPTY }} />
+              none
+            </span>
           </span>
-        ))}
-        <span className="map-legend-note">
-          A pin takes the colour of its furthest-along case, and its number
-          when a city holds more than one.
-        </span>
-      </div>
+          <span className="map-legend-note">
+            Shading counts applications per country. Pins keep their stage
+            colour, so you can still select a city.
+          </span>
+        </div>
+      ) : (
+        <div className="map-legend">
+          {STAGES.map(s => (
+            <span className="map-legend-item" key={s}>
+              <span className="map-legend-dot" style={{ background: stageMeta(s).color }} />
+              {stageMeta(s).label}
+            </span>
+          ))}
+          <span className="map-legend-note">
+            A pin takes the colour of its furthest-along case, and its number
+            when a city holds more than one.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

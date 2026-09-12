@@ -162,17 +162,51 @@ remote.
 
 ## Map tab
 
-A world map of everywhere you have applied, with a pin per city coloured by
-stage. Two projections from the same data: a flat map, and a globe you drag
-to rotate. Both are plain SVG.
+A world map of everywhere you have applied. Two independent switches, so any
+combination works:
 
-- A pin takes the colour of its **furthest-along** case, so a city where you
-  have an offer and three rejections reads as an offer, and carries a count
-  when it holds more than one case
-- Selecting a pin lists that city's cases beside the map; selecting one opens
-  the usual case modal
+| Switch | Options |
+|--------|---------|
+| Projection | Flat map, Globe (drag to rotate) |
+| Encoding | Pins, Heat |
+
+Both are plain SVG over the same data.
+
+- **Pins** takes the colour of its **furthest-along** case, so a city where
+  you have an offer and three rejections reads as an offer, and carries a
+  count when it holds more than one case
+- **Heat** shades each country by how many applications it holds, on a
+  single-hue teal ramp. Pins stay visible but smaller, so selecting a city
+  still works, and hovering a shaded country gives its count
+- Selecting a pin opens a scrolling read-only panel beside the map with the
+  full detail of every case there: stage, job type, employment, on-site or
+  remote, requisition ID, follow-up status, contact-log count, notes and a
+  link to the posting. Editing stays behind an explicit **Open case** button
 - The stage chips filter which cases are plotted at all
 - Drag to rotate the globe or pan the flat map, and zoom with + and −
+
+### Why teal, and why point-in-polygon
+
+The heat ramp is one hue light to dark, because it encodes magnitude. Teal
+rather than the more usual blue: the board already uses blue to mean the
+Applied stage, and one colour meaning two things on one screen is worse than
+an unconventional hue. Steps are anchored on the app's own accent tokens and
+checked for monotonically falling OKLab lightness across a 6 degree hue
+spread, which is the check that matters for a sequential ramp. Counts are
+small integers, so the scale uses explicit bins (1, 2–3, 4–6, 7–10, 11+)
+rather than a continuous gradient: a reader can map a shade back to a number.
+Countries with nothing keep the basemap grey, so zero never reads as low.
+
+Counting per country is point-in-polygon (`geoContains`), not a name match,
+because the gazetteer and the basemap disagree on names. The gazetteer says
+"United States" and the basemap says "United States of America", so matching
+on names would have silently dropped every US application from the heat map.
+
+**Topographic relief is not here, and is not cheap.** Terrain shading needs an
+elevation raster or hillshade tiles, which means a tile provider and a key, or
+bundling a dataset orders of magnitude larger than the 108KB of outlines.
+Everything else on this map works offline with no account, and that seemed
+worth more than relief the data does not need.
 
 Country outlines come from a bundled 108KB TopoJSON file (`world-atlas` at
 110m resolution) projected with `d3-geo`, not from map tiles. No tile server,
