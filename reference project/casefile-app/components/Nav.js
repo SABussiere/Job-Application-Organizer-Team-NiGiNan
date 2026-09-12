@@ -18,8 +18,7 @@ export default function Nav() {
         <div className="masthead-inner">
           <div className="brand">
             <div className="brand-tab"></div>
-            <h1>CASEFILE</h1>
-            <p>an open case for every application</p>
+            <h1>Casefile</h1>
           </div>
           <nav className="views desktop-nav">
             {LINKS.map(l => (
