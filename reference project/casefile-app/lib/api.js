@@ -71,6 +71,10 @@ function withApplicationDefaults(app) {
     requisitionId: "",
     jobType: "",
     location: "",
+    // Coordinates for the Map tab, set when a location is matched against
+    // the gazetteer. Null for free text and for places with no pin
+    // ("Remote"), which the map reports separately rather than dropping.
+    geo: null,
     notes: "",
     jobUrl: "",
     followUpDate: "",
@@ -105,6 +109,7 @@ export const api = {
       status: data.status || "applied",
       jobUrl: data.jobUrl || "",
       location: data.location || "",
+      geo: data.geo ?? null,
       notes: data.notes || "",
       followUpDate: data.followUpDate || "",
       resumeVersion: data.resumeVersion ?? assembleResumeText(modules),

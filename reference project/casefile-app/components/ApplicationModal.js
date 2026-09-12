@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { COMM_TYPES, JOB_TYPE_SUGGESTIONS, STAGES, SECTION_TITLES, stageMeta } from "@/lib/constants";
 import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
+import LocationInput from "@/components/LocationInput";
 import { assembleResumeText } from "@/lib/matching";
 import { dateRange, latexFileName } from "@/lib/latex";
 import { formatDate } from "@/lib/followups";
@@ -93,6 +94,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
           status: data.status,
           followUpDate: data.followUpDate || "",
           location: data.location || "",
+          geo: data.geo || null,
           jobUrl: data.jobUrl || "",
           notes: data.notes || ""
         });
@@ -104,6 +106,15 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   }, [appId]);
 
   if (!app || !form) return null;
+
+  const recentLocations = [];
+  const seenLocations = new Set();
+  apps.forEach(a => {
+    const key = (a.location || "").toLowerCase();
+    if (!a.location || seenLocations.has(key)) return;
+    seenLocations.add(key);
+    recentLocations.push({ location: a.location, geo: a.geo || null });
+  });
 
   const suggest = {
     company: suggestionValues(apps, "company"),
@@ -266,10 +277,11 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
               </div>
               <div className="mfield">
                 <label>Location</label>
-                <SuggestInput
+                <LocationInput
                   value={form.location}
-                  onChange={v => setForm({ ...form, location: v })}
-                  options={suggest.location}
+                  geo={form.geo}
+                  recent={recentLocations}
+                  onChange={({ location, geo }) => setForm({ ...form, location, geo })}
                 />
               </div>
             </div>

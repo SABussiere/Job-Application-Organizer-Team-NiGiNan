@@ -6,6 +6,7 @@ import { JOB_TYPE_SUGGESTIONS, STAGES, stageMeta } from "@/lib/constants";
 import { todayStr } from "@/lib/followups";
 import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
+import LocationInput from "@/components/LocationInput";
 
 /**
  * Creating a case is deliberately a form rather than an instant placeholder
@@ -21,6 +22,7 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
     dateApplied: todayStr(),
     status: "applied",
     location: "",
+    geo: null,
     jobUrl: "",
     followUpDate: "",
     notes: ""
@@ -43,6 +45,17 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
 
   // Suggestions come from what's already on the board, so the same employer
   // doesn't get stored three different ways and split its filter option.
+  // Locations already on the board, with whatever coordinates they carry, so
+  // reusing one keeps its pin without another lookup.
+  const recentLocations = [];
+  const seenLocations = new Set();
+  apps.forEach(a => {
+    const key = (a.location || "").toLowerCase();
+    if (!a.location || seenLocations.has(key)) return;
+    seenLocations.add(key);
+    recentLocations.push({ location: a.location, geo: a.geo || null });
+  });
+
   const suggest = {
     company: suggestionValues(apps, "company"),
     position: suggestionValues(apps, "position"),
@@ -126,12 +139,14 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
           </div>
           <div className="mfield">
             <label htmlFor="na-location">Location</label>
-            <SuggestInput
+            <LocationInput
               id="na-location"
               value={form.location}
-              onChange={v => set("location", v)}
-              options={suggest.location}
-              placeholder="Toronto, ON"
+              geo={form.geo}
+              recent={recentLocations}
+              onChange={({ location, geo }) =>
+                setForm(prev => ({ ...prev, location, geo }))
+              }
             />
           </div>
         </div>
