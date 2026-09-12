@@ -1,5 +1,6 @@
 node_modules/
 .next/
+data/db.json
 .DS_Store
 .expo/
 *.log
@@ -8,3 +9,4 @@ node_modules/
 # project, they are not secrets), but each developer points at their own
 # project, so this stays out of the repo. See .env.local.example.
 .env*.local
+mobile/

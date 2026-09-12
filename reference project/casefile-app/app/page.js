@@ -16,6 +16,8 @@ export default function BoardPage() {
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [dragOverStage, setDragOverStage] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   // Pinned once per mount so every card, badge and count agrees on what
@@ -53,6 +55,34 @@ export default function BoardPage() {
     load();
   }
 
+  async function syncGmail() {
+    setSyncing(true);
+    setSyncMessage("");
+    try {
+      const res = await fetch("/api/email/sync", { method: "POST" });
+      if (res.status === 401) {
+        window.location.href = "/api/auth/google";
+        return;
+      }
+      if (!res.ok) throw new Error(`Sync failed (${res.status})`);
+      const data = await res.json();
+      setSyncMessage(
+        data.queued > 0
+          ? `Scanned ${data.scanned}, queued ${data.queued} for review — check Email Review.`
+          : `Scanned ${data.scanned}, nothing new to review.`
+      );
+    } catch (err) {
+      setSyncMessage(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function disconnectGmail() {
+    await fetch("/api/auth/google", { method: "DELETE" });
+    setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
+  }
+
   function handleCreated() {
     setCreating(false);
     load();
@@ -88,6 +118,13 @@ export default function BoardPage() {
           resultCount={visible.length}
         />
         <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
+        <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
+          {syncing ? "Syncing..." : "📥 Sync Gmail"}
+        </button>
+        <button className="btn-secondary-inline" onClick={disconnectGmail}>
+          Disconnect Gmail
+        </button>
+        {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
 
       {loading ? (

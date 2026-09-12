@@ -6,7 +6,8 @@ import { useAuth } from "@/components/AuthProvider";
 
 const LINKS = [
   { href: "/", label: "Case Board", icon: "🗂" },
-  { href: "/resume", label: "Master Resume", icon: "📄" }
+  { href: "/resume", label: "Master Resume", icon: "📄" },
+  { href: "/review", label: "Email Review", icon: "📥" }
 ];
 
 export default function Nav() {
