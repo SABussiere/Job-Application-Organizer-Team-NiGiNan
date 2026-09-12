@@ -1,10 +1,12 @@
 // /review — human-in-the-loop screen for the synced-email queue. Shows each
-// pending guess so the user can confirm (writes it to the board) or dismiss
-// it, instead of emails silently creating/editing applications on their own.
+// pending guess so the user can confirm (writes it to the board, via the
+// same Firestore-backed lib/api.js every other page uses) or dismiss it,
+// instead of emails silently creating/editing applications on their own.
 
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export default function ReviewPage() {
   const [pending, setPending] = useState([]);
@@ -25,13 +27,34 @@ export default function ReviewPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function confirm(id) {
+  async function confirm(entry) {
     try {
-      const res = await fetch(`/api/email/pending/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: "{}"
-      });
+      // The application write has to happen here, in the browser — this is
+      // the only place with a signed-in Firebase session. api.* is the
+      // team's existing Firestore-backed client from lib/api.js, untouched;
+      // this just calls it the same way any other page does.
+      const applications = await api.listApplications();
+      const existing = applications.find(a => a.emailThreadId === entry.threadId);
+
+      if (existing) {
+        await api.updateApplication(existing.id, {
+          status: entry.extracted.status,
+          emailMessageIds: [...(existing.emailMessageIds || []), entry.messageId]
+        });
+      } else {
+        const created = await api.createApplication({
+          company: entry.extracted.company,
+          position: entry.extracted.position,
+          status: entry.extracted.status,
+          dateApplied: new Date().toISOString().slice(0, 10)
+        });
+        await api.updateApplication(created.id, {
+          emailThreadId: entry.threadId,
+          emailMessageIds: [entry.messageId]
+        });
+      }
+
+      const res = await fetch(`/api/email/pending/${entry.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       load();
     } catch (err) {
@@ -73,7 +96,7 @@ export default function ReviewPage() {
               <div className="r-co">Guessed status: {p.extracted.status}</div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary" onClick={() => confirm(p.id)}>Confirm</button>
+              <button className="btn-primary" onClick={() => confirm(p)}>Confirm</button>
               <button className="btn-danger" onClick={() => dismiss(p.id)}>Dismiss</button>
             </div>
           </li>
