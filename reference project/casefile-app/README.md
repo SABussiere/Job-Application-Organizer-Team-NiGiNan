@@ -40,25 +40,53 @@ using your computer's LAN IP — see note below).
 
 ## API
 
-Same REST API as before, still used by the frontend:
+| Method | Path                                       | Purpose                              |
+|--------|---------------------------------------------|----------------------------------------|
+| GET    | `/api/applications`                         | list all applications                  |
+| POST   | `/api/applications`                         | create an application                  |
+| GET    | `/api/applications/:id`                     | get one application                    |
+| PATCH  | `/api/applications/:id`                     | update fields on it                    |
+| DELETE | `/api/applications/:id`                     | delete it                              |
+| POST   | `/api/applications/:id/communications`      | log a communication entry              |
+| POST   | `/api/applications/:id/tailor`              | generate a tailored resume from a job description |
+| GET    | `/api/resume-modules`                       | list master resume modules             |
+| POST   | `/api/resume-modules`                       | create a module                        |
+| PATCH  | `/api/resume-modules/:id`                   | update a module                        |
+| DELETE | `/api/resume-modules/:id`                   | delete a module                        |
+| POST   | `/api/resume-modules/:id/reorder`           | move a module up/down                  |
+| GET    | `/api/resume-modules/full`                  | full assembled text of every module    |
+| GET    | `/api/stats`                                | totals + counts per stage              |
 
-| Method | Path                                   | Purpose                     |
-|--------|------------------------------------------|-------------------------------|
-| GET    | `/api/applications`                     | list all applications        |
-| POST   | `/api/applications`                     | create an application        |
-| GET    | `/api/applications/:id`                 | get one application          |
-| PATCH  | `/api/applications/:id`                 | update fields on it          |
-| DELETE | `/api/applications/:id`                 | delete it                    |
-| POST   | `/api/applications/:id/communications`  | log a communication entry    |
-| GET    | `/api/resume`                           | get the master resume text   |
-| PUT    | `/api/resume`                           | set the master resume text   |
-| GET    | `/api/stats`                            | totals + counts per stage    |
+## Modular resume + automatic tailoring
+
+The master resume is no longer one text blob — it's a list of modules (a
+summary, each job, each project, a skills block), each with a few tags you
+choose (e.g. `react`, `leadership`, `data analysis`).
+
+When you paste a job description into an application's **Tailored Resume**
+tab and hit **Generate tailored resume**, `lib/matching.js` runs a
+dependency-free keyword match: it tokenizes the job description, scores
+every module (tag matches count for more than incidental body-text overlap,
+plus a small synonym table so "engineer"/"engineering" etc. still match),
+and assembles a resume from modules marked "always include" plus the
+highest-scoring matches. The UI shows exactly which modules were picked and
+why (or why a module was left out), so it's not a black box.
+
+This is pure keyword matching — no external API, no cost, no network call,
+runs instantly. An LLM-backed version (semantic matching, light rephrasing
+to mirror the posting's language) is a natural upgrade path later without
+changing the API shape, since everything already funnels through
+`selectModules()` in `lib/matching.js`.
 
 ## Data
 
 Stored in `data/db.json`, created automatically on first write. Delete it to
 reset. Everything reads/writes exclusively through `lib/db.js` — swap that
 module for Prisma + Postgres later without touching any route or page.
+
+If you have an old `data/db.json` from before the modular resume update, it
+migrates automatically on first read: your old single-string master resume
+becomes one module tagged to always-include, so nothing is lost.
 
 ## Trying it from your phone during local dev
 

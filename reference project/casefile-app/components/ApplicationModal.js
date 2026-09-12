@@ -9,11 +9,28 @@ function formatDate(dateStr) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Mirrors lib/matching.js's assembleResumeText, but works off the
+// match-summary rows (which already carry each module's content/order) so
+// toggling a checkbox can rebuild the draft instantly, client-side.
+function assembleFromSelection(matchSummary) {
+  return matchSummary
+    .filter(m => m.included)
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map(m => (m.title ? `${m.title}\n${m.content}` : m.content))
+    .join("\n\n")
+    .trim();
+}
+
 export default function ApplicationModal({ appId, onClose, onChanged }) {
   const [tab, setTab] = useState("details");
   const [app, setApp] = useState(null);
   const [form, setForm] = useState(null);
   const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [matchSummary, setMatchSummary] = useState(null);
+  const [tailoring, setTailoring] = useState(false);
+  const [tailorError, setTailorError] = useState("");
   const [commType, setCommType] = useState("note");
   const [commDate, setCommDate] = useState(new Date().toISOString().slice(0, 10));
   const [commText, setCommText] = useState("");
@@ -35,6 +52,7 @@ export default function ApplicationModal({ appId, onClose, onChanged }) {
         notes: data.notes || ""
       });
       setResumeText(data.resumeVersion || "");
+      setJobDescription(data.jobDescription || "");
     });
     return () => { cancelled = true; };
   }, [appId]);
@@ -61,8 +79,32 @@ export default function ApplicationModal({ appId, onClose, onChanged }) {
   }
 
   async function resetFromMaster() {
-    const master = await api.getMasterResume();
-    setResumeText(master);
+    const text = await api.getFullMasterResumeText();
+    setResumeText(text);
+    setMatchSummary(null);
+  }
+
+  async function tailorFromJD() {
+    if (!jobDescription.trim()) return;
+    setTailoring(true);
+    setTailorError("");
+    try {
+      const result = await api.tailorApplication(appId, jobDescription.trim());
+      setResumeText(result.application.resumeVersion);
+      setMatchSummary(result.matchSummary);
+    } catch (e) {
+      setTailorError(e.message);
+    } finally {
+      setTailoring(false);
+    }
+  }
+
+  function toggleModuleIncluded(moduleId) {
+    const updated = matchSummary.map(m =>
+      m.moduleId === moduleId ? { ...m, included: !m.included } : m
+    );
+    setMatchSummary(updated);
+    setResumeText(assembleFromSelection(updated));
   }
 
   async function logComm(e) {
@@ -138,10 +180,58 @@ export default function ApplicationModal({ appId, onClose, onChanged }) {
 
         {tab === "resume" && (
           <div>
-            <p className="hint">Tailor this copy for the role. Editing here never changes your master resume.</p>
+            <div className="tailor-box">
+              <label className="tailor-label">Job description</label>
+              <textarea
+                className="jd-input"
+                rows={5}
+                placeholder="Paste the job posting text here..."
+                value={jobDescription}
+                onChange={e => setJobDescription(e.target.value)}
+              />
+              <div className="tailor-actions">
+                <button className="btn-primary" onClick={tailorFromJD} disabled={tailoring || !jobDescription.trim()}>
+                  {tailoring ? "Matching..." : "Generate tailored resume"}
+                </button>
+                {tailorError && <span className="tailor-error">{tailorError}</span>}
+              </div>
+              {matchSummary && (
+                <div className="match-summary">
+                  <p className="hint" style={{ margin: "10px 0 6px" }}>
+                    Included {matchSummary.filter(m => m.included).length} of {matchSummary.length} master modules.
+                    Uncheck any that don't fit — the draft below updates right away.
+                  </p>
+                  <ul className="match-list">
+                    {matchSummary.map(m => (
+                      <li key={m.moduleId} className={m.included ? "matched" : "skipped"}>
+                        <label className="match-check">
+                          <input
+                            type="checkbox"
+                            checked={m.included}
+                            onChange={() => toggleModuleIncluded(m.moduleId)}
+                          />
+                          <span className="match-title">{m.title || "(untitled)"}</span>
+                        </label>
+                        {m.alwaysIncluded ? (
+                          <span className="match-reason">always included by default</span>
+                        ) : m.matchedTags.length || m.matchedWords.length ? (
+                          <span className="match-reason">
+                            matched: {[...m.matchedTags, ...m.matchedWords].slice(0, 5).join(", ")}
+                          </span>
+                        ) : (
+                          <span className="match-reason">no overlap — left out</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <p className="hint" style={{ marginTop: 18 }}>This text is what gets saved as the tailored resume. Edit freely — it never changes your master modules.</p>
             <textarea className="resume-input" value={resumeText} onChange={e => setResumeText(e.target.value)} />
             <div className="modal-actions">
-              <button className="btn-secondary-inline" onClick={resetFromMaster}>Reset from master</button>
+              <button className="btn-secondary-inline" onClick={resetFromMaster}>Reset to full master</button>
               <button className="btn-primary" onClick={saveResume}>{savedFlash ? "Saved ✓" : "Save tailored resume"}</button>
             </div>
           </div>
