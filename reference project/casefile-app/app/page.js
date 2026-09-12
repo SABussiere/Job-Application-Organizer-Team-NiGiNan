@@ -34,6 +34,12 @@ export default function BoardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!syncMessage) return;
+    const timer = setTimeout(() => setSyncMessage(""), 4000);
+    return () => clearTimeout(timer);
+  }, [syncMessage]);
+
   const counts = useMemo(() => countByBucket(apps, today), [apps, today]);
   const visible = useMemo(
     () => filterApplications(apps, filters, today),
@@ -124,8 +130,13 @@ export default function BoardPage() {
         <button className="btn-secondary-inline" onClick={disconnectGmail}>
           Disconnect Gmail
         </button>
-        {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
+
+      {syncMessage && (
+        <div className="sync-toast" role="status" aria-live="polite">
+          {syncMessage}
+        </div>
+      )}
 
       {loading ? (
         <p className="hint">Loading your applications...</p>
