@@ -807,6 +807,9 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .map-graticule { fill: none; stroke: var(--border); stroke-width: 0.5; }
 .map-country { fill: #DDE3E6; stroke: var(--surface); stroke-width: 0.4; }
 .map-country.has-data { stroke: var(--surface); stroke-width: 0.7; }
+.map-country.has-places { cursor: pointer; }
+.map-country.has-places:hover { stroke: var(--ink); stroke-width: 1; }
+.map-country.selected { stroke: var(--ink); stroke-width: 1.5; }
 
 .map-pin { cursor: pointer; }
 /* Invisible but hit-testable: a painted fill at zero opacity still receives

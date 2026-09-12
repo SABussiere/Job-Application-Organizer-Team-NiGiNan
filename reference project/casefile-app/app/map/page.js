@@ -6,7 +6,8 @@ import { STAGES, stageMeta } from "@/lib/constants";
 import { locationStatus } from "@/lib/geocode";
 import { todayStr } from "@/lib/followups";
 import ApplicationModal from "@/components/ApplicationModal";
-import WorldMap, { groupByPlace } from "@/components/WorldMap";
+import { geoContains } from "d3-geo";
+import WorldMap, { COUNTRIES, dominantStatus, groupByPlace } from "@/components/WorldMap";
 import PlaceCaseList from "@/components/PlaceCaseList";
 
 export default function MapPage() {
@@ -57,9 +58,29 @@ export default function MapPage() {
   }
 
   // A pin that drops out of the current filter shouldn't leave a stale panel.
-  const selectedPlace = selected
-    ? plotted.find(p => p.key === selected) || null
-    : null;
+  const selectedPlace = useMemo(() => {
+    if (!selected) return null;
+    const pinMatch = plotted.find(p => p.key === selected);
+    if (pinMatch) return pinMatch;
+    if (selected.startsWith("country:")) {
+      const countryId = selected.slice(8);
+      const countryFeature = COUNTRIES.find(c => String(c.id) === String(countryId));
+      if (!countryFeature) return null;
+      const countryPlaces = plotted.filter(p => geoContains(countryFeature, [p.geo.lon, p.geo.lat]));
+      if (countryPlaces.length === 0) return null;
+      const allApps = countryPlaces.flatMap(p => p.apps);
+      return {
+        key: selected,
+        geo: {
+          city: countryFeature.properties.name,
+          country: ""
+        },
+        apps: allApps,
+        status: dominantStatus(allApps)
+      };
+    }
+    return null;
+  }, [selected, plotted]);
 
   return (
     <div>

@@ -199,16 +199,38 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
 
         {COUNTRIES.map(f => {
           const count = counts.get(f.id) || 0;
+          const isSelected = selectedKey === `country:${f.id}`;
+          const countryPlaces = places.filter(place => geoContains(f, [place.geo.lon, place.geo.lat]));
+          const hasPlaces = countryPlaces.length > 0;
           return (
             <path
               key={f.id}
-              className={`map-country ${isHeat && count ? "has-data" : ""}`}
+              className={`map-country ${isHeat && count ? "has-data" : ""} ${hasPlaces ? "has-places" : ""} ${isSelected ? "selected" : ""}`}
               d={path(f)}
               style={isHeat ? { fill: heatColor(count) } : undefined}
+              onClick={e => {
+                if (wasDraggedRef.current) return;
+                if (countryPlaces.length > 0) {
+                  e.stopPropagation();
+                  if (countryPlaces.length === 1) {
+                    onSelectPlace(countryPlaces[0]);
+                  } else {
+                    const allApps = countryPlaces.flatMap(p => p.apps);
+                    onSelectPlace({
+                      key: `country:${f.id}`,
+                      geo: { city: f.properties.name, country: "" },
+                      apps: allApps,
+                      status: dominantStatus(allApps)
+                    });
+                  }
+                }
+              }}
             >
-              {isHeat && count > 0 && (
-                <title>{`${f.properties.name}: ${count} ${count === 1 ? "application" : "applications"}`}</title>
-              )}
+              <title>
+                {count > 0
+                  ? `${f.properties.name}: ${count} ${count === 1 ? "application" : "applications"}`
+                  : f.properties.name}
+              </title>
             </path>
           );
         })}
