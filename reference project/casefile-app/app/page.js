@@ -49,12 +49,27 @@ export default function BoardPage() {
 
   return (
     <div>
+      {!loading && (
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="num">{apps.length}</div>
+            <div className="label">Total applications</div>
+          </div>
+          {STAGES.slice(0, 3).map(stage => (
+            <div className="stat-card" key={stage}>
+              <div className="num">{apps.filter(a => a.status === stage).length}</div>
+              <div className="label">{STAGE_META[stage].label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="board-toolbar">
-        <button className="btn-stamp" onClick={createNew}>+ New Application</button>
+        <button className="btn-stamp" onClick={createNew}>+ New application</button>
       </div>
 
       {loading ? (
-        <p className="hint">Loading your cases...</p>
+        <p className="hint">Loading your applications...</p>
       ) : (
         <div className="board">
           {STAGES.map(stage => {
@@ -74,7 +89,7 @@ export default function BoardPage() {
                   <span className="count">{stageApps.length}</span>
                 </div>
                 {stageApps.length === 0 ? (
-                  <div className="empty-col">No applications here yet</div>
+                  <div className="empty-col">Nothing here yet</div>
                 ) : (
                   stageApps.map(app => (
                     <ApplicationCard

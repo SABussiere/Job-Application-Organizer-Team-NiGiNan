@@ -1,4 +1,10 @@
-# Casefile — Job Application Tracker
+# Casefile — Job Application Tracker (Minimal design variant)
+
+This is the sleek/minimal card-based visual variant of Casefile — same data
+model, same API, same features as the manila "case file" version. Only the
+design system changed: flat white cards, one deep-teal accent, Inter
+typeface, varied corner radius by hierarchy instead of one radius on
+everything.
 
 A job application organizer for the Fall 2026 hackathon brief: track
 applications through stages, tailor resumes per role, log employer
