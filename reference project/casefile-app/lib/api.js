@@ -25,6 +25,7 @@ export const api = {
     request(`/applications/${id}/communications`, { method: "POST", body: JSON.stringify(comm) }).then(d => d.application),
   tailorApplication: (id, jobDescription) =>
     request(`/applications/${id}/tailor`, { method: "POST", body: JSON.stringify({ jobDescription }) }),
+  getApplicationLatex: id => request(`/applications/${id}/latex`).then(d => d.latex),
 
   listResumeModules: () => request("/resume-modules").then(d => d.modules),
   createResumeModule: data => request("/resume-modules", { method: "POST", body: JSON.stringify(data) }).then(d => d.module),
@@ -32,6 +33,16 @@ export const api = {
   deleteResumeModule: id => request(`/resume-modules/${id}`, { method: "DELETE" }),
   reorderResumeModule: (id, direction) => request(`/resume-modules/${id}/reorder`, { method: "POST", body: JSON.stringify({ direction }) }).then(d => d.modules),
   getFullMasterResumeText: () => request("/resume-modules/full").then(d => d.text),
+
+  // LaTeX rendering. The GET is the whole master resume; the POST renders an
+  // explicit, ordered subset so a preview can match unsaved UI state.
+  getMasterLatex: () => request("/resume-modules/latex").then(d => d.latex),
+  renderLatex: moduleIds =>
+    request("/resume-modules/latex", { method: "POST", body: JSON.stringify({ moduleIds }) }).then(d => d.latex),
+
+  getResumeProfile: () => request("/resume-profile").then(d => d.profile),
+  updateResumeProfile: patch =>
+    request("/resume-profile", { method: "PATCH", body: JSON.stringify(patch) }).then(d => d.profile),
 
   getStats: () => request("/stats")
 };

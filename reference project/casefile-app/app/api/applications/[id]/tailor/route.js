@@ -25,10 +25,11 @@ export async function POST(request, { params }) {
 
   const { selected } = selectModules(jobDescription, modules);
   const resumeVersion = assembleResumeText(selected);
-  const selectedIds = new Set(selected.map(m => m.id));
+  const selectedIds = selected.map(m => m.id);
 
   const updated = db.updateApplication(params.id, {
     resumeVersion,
+    resumeModuleIds: selectedIds,
     jobDescription,
     tailoredFrom: {
       generatedAt: new Date().toISOString(),
@@ -39,23 +40,32 @@ export async function POST(request, { params }) {
 
   // Return match detail for EVERY master module — not just the ones that
   // made the automatic cut — so the UI can show the full picture (including
-  // modules that got left out) and let the user manually check/uncheck any
-  // of them. `content`/`order` ride along so the client can reassemble the
-  // resume text itself when the user overrides the selection, without a
-  // round trip.
-  const matchSummary = scoreModules(jobDescription, modules)
-    .map(d => ({
-      moduleId: d.module.id,
-      title: d.module.title,
-      content: d.module.content,
-      order: d.module.order,
-      score: d.score,
-      alwaysIncluded: !!d.module.alwaysInclude,
-      included: selectedIds.has(d.module.id),
-      matchedTags: d.matchedTags,
-      matchedWords: d.matchedWords
-    }))
-    // .sort((a, b) => b.score - a.score);
+  // modules that got left out) and let the user check, uncheck and reorder
+  // any of them. The whole module rides along so the client can reassemble
+  // the resume text itself when the selection changes, without a round trip.
+  const chosen = new Set(selectedIds);
+  const byId = new Map(
+    scoreModules(jobDescription, modules).map(d => [
+      d.module.id,
+      {
+        moduleId: d.module.id,
+        module: d.module,
+        score: d.score,
+        alwaysIncluded: !!d.module.alwaysInclude,
+        included: chosen.has(d.module.id),
+        matchedTags: d.matchedTags,
+        matchedWords: d.matchedWords
+      }
+    ])
+  );
+
+  // Selected modules first, in the order they'll appear in the resume, then
+  // everything that was left out — so the list reads top to bottom like the
+  // document it produces.
+  const matchSummary = [
+    ...selectedIds.map(id => byId.get(id)),
+    ...modules.filter(m => !chosen.has(m.id)).map(m => byId.get(m.id))
+  ].filter(Boolean);
 
   return withCors({ application: updated, matchSummary });
 }
