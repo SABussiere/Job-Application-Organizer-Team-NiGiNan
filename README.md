@@ -94,6 +94,67 @@ one file that knows about Firestore; every component just calls
 `api.listApplications()`, `api.createResumeModule(...)`, etc., same as
 before.
 
+## Verified locations
+
+Typing a location checks it against a real gazetteer instead of trusting free
+text. Pick a suggestion and the case stores both the canonical string
+("Toronto, ON, Canada") and a `geo` object with the city, region, country and
+coordinates. The coordinates are what put the case on the Map tab.
+
+The provider is [Open-Meteo's geocoding API][om]: no API key, no billing
+account, nothing for a teammate to configure, and it sends
+`access-control-allow-origin: *` so the browser calls it directly. That keeps
+the app free of a server layer, the same way Firestore does. Province and
+state names are abbreviated for Canada and the US so the stored string reads
+the way postings write it; elsewhere the full region name is kept.
+
+Everything goes through `searchPlaces()` in `lib/geocode.js`, so moving to a
+keyed provider later means rewriting one function.
+
+Three things it deliberately does not do:
+
+- **It never blocks a save.** Text the gazetteer does not recognise is
+  accepted and badged `unverified`. A location can be newer than the dataset,
+  or spelled in a way the provider misses, and the field should not argue
+  with you about where you applied.
+- **It treats "Remote" as valid.** Remote, Hybrid, Anywhere and similar skip
+  the lookup entirely and badge as `no pin`, rather than being reported as
+  unverifiable places.
+- **It offers locations already on your board first**, before any network
+  call, so a repeat location is one tap and keeps its coordinates.
+
+Coverage is a genuine limit. The dataset is place-name based, so a city
+listed under a different official name will not match what you typed
+(searching Bangalore finds a town in Pakistan; Bengaluru finds the Indian
+city). The unverified badge is the escape hatch.
+
+[om]: https://open-meteo.com/en/docs/geocoding-api
+
+## Map tab
+
+A world map of everywhere you have applied, with a pin per city coloured by
+stage. Two projections from the same data: a flat map, and a globe you drag
+to rotate. Both are plain SVG.
+
+- A pin takes the colour of its **furthest-along** case, so a city where you
+  have an offer and three rejections reads as an offer, and carries a count
+  when it holds more than one case
+- Selecting a pin lists that city's cases beside the map; selecting one opens
+  the usual case modal
+- The stage chips filter which cases are plotted at all
+- Drag to rotate the globe or pan the flat map, and zoom with + and −
+
+Country outlines come from a bundled 108KB TopoJSON file (`world-atlas` at
+110m resolution) projected with `d3-geo`, not from map tiles. No tile server,
+no API key, and the map works offline. The globe uses an orthographic
+projection, with pins on the far side hidden by comparing each point's
+`geoDistance` to the centre of the visible hemisphere.
+
+A panel under the case list accounts for every case that is **not** drawn,
+split by why: no location set, a location with no fixed place, or text that
+was never matched to a place. A map that silently omits cases would be worse
+than no map, so the count is always visible.
+
 ## Structured modules and LaTeX output
 
 A module is not a blob of text. Each carries the fields a resume line needs:
@@ -277,3 +338,10 @@ easier than relying on local network access.
   reminder sent from a scheduled server job
 - Consider turning this into a PWA (manifest.json + service worker) for an
   "install to home screen" feel without needing a native app
+- Location lookup matches on place name, so a city commonly known by another
+  name will not be found under the one you typed. A keyed provider (Google
+  Places, Mapbox) handles aliases and partial input far better; the swap is
+  one function in `lib/geocode.js`
+- The map plots cities, not employers. Pinning an actual office address would
+  need a provider that geocodes street addresses, which the current keyless
+  one does not do
