@@ -23,7 +23,10 @@ export const api = {
   deleteApplication: id => request(`/applications/${id}`, { method: "DELETE" }),
   addCommunication: (id, comm) =>
     request(`/applications/${id}/communications`, { method: "POST", body: JSON.stringify(comm) }).then(d => d.application),
+  getResumeWorkspace: () => request("/resume"),
+  saveResumeWorkspace: data => request("/resume", { method: "PUT", body: JSON.stringify(data) }),
   getMasterResume: () => request("/resume").then(d => d.masterResume),
   setMasterResume: text => request("/resume", { method: "PUT", body: JSON.stringify({ text }) }).then(d => d.masterResume),
+  tailorResume: data => request("/resume/tailor", { method: "POST", body: JSON.stringify(data) }),
   getStats: () => request("/stats")
 };

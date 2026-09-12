@@ -1,6 +1,8 @@
 node_modules/
 .next/
 data/db.json
+.env
+.env*.local
 .DS_Store
 .expo/
 *.log

@@ -17,14 +17,20 @@ function ensureDb() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(
       DB_FILE,
-      JSON.stringify({ applications: [], masterResume: "" }, null, 2)
+      JSON.stringify({ applications: [], masterResume: "", masterStories: [] }, null, 2)
     );
   }
 }
 
 function read() {
   ensureDb();
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  const state = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  return {
+    ...state,
+    applications: state.applications || [],
+    masterResume: state.masterResume || "",
+    masterStories: state.masterStories || []
+  };
 }
 
 function write(data) {
@@ -105,6 +111,36 @@ export const db = {
     state.masterResume = text;
     write(state);
     return state.masterResume;
+  },
+
+  getMasterStories() {
+    return read().masterStories || [];
+  },
+
+  setMasterStories(stories) {
+    const state = read();
+    state.masterStories = (stories || []).map(story => ({
+      id: story.id || uid(),
+      title: story.title || "",
+      role: story.role || "",
+      skills: Array.isArray(story.skills)
+        ? story.skills
+        : String(story.skills || "")
+            .split(",")
+            .map(skill => skill.trim())
+            .filter(Boolean),
+      situation: story.situation || "",
+      action: story.action || "",
+      result: story.result || "",
+      bullets: Array.isArray(story.bullets)
+        ? story.bullets
+        : String(story.bullets || "")
+            .split("\n")
+            .map(bullet => bullet.trim())
+            .filter(Boolean)
+    }));
+    write(state);
+    return state.masterStories;
   },
 
   getStats() {

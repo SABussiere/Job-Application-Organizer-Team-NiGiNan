@@ -6,11 +6,15 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return withCors({ masterResume: db.getMasterResume() });
+  return withCors({
+    masterResume: db.getMasterResume(),
+    masterStories: db.getMasterStories()
+  });
 }
 
 export async function PUT(request) {
-  const { text } = await request.json();
+  const { text, stories } = await request.json();
   const masterResume = db.setMasterResume(text || "");
-  return withCors({ masterResume });
+  const masterStories = db.setMasterStories(stories || []);
+  return withCors({ masterResume, masterStories });
 }
