@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Casefile",
+    "slug": "casefile-job-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#1B2430"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.casefile.jobtracker"
+    },
+    "android": {
+      "package": "com.casefile.jobtracker",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B2430"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
