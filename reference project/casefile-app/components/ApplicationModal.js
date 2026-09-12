@@ -215,12 +215,14 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   }
 
   async function tailorFromJD() {
-    if (!jobDescription.trim()) return;
+    const trimmedJobDescription = jobDescription.trim();
+    if (!trimmedJobDescription) return;
     setTailoring(true);
     setTailorError("");
     try {
-      const result = await api.tailorApplication(appId, jobDescription.trim());
+      const result = await api.tailorApplication(appId, trimmedJobDescription);
       setApp(result.application);
+      setJobDescription(trimmedJobDescription);
       const ids = result.application.resumeModuleIds || [];
       const next = buildRows(modules, ids, result.matchSummary);
       setRows(next);
@@ -249,7 +251,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal">
-        <button className="modal-close" onClick={onClose}>&times;</button>
+        <button type="button" className="modal-close" onClick={onClose}>&times;</button>
 
         <div className="modal-heading-row">
           <h2 className="modal-heading">{app.position || "Untitled position"}</h2>
@@ -260,9 +262,9 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         </div>
 
         <div className="modal-tabs">
-          <button className={`modal-tab-btn ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>Details</button>
-          <button className={`modal-tab-btn ${tab === "resume" ? "active" : ""}`} onClick={() => setTab("resume")}>Tailored Resume</button>
-          <button className={`modal-tab-btn ${tab === "comms" ? "active" : ""}`} onClick={() => setTab("comms")}>Communications</button>
+          <button type="button" className={`modal-tab-btn ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>Details</button>
+          <button type="button" className={`modal-tab-btn ${tab === "resume" ? "active" : ""}`} onClick={() => setTab("resume")}>Tailored Resume</button>
+          <button type="button" className={`modal-tab-btn ${tab === "comms" ? "active" : ""}`} onClick={() => setTab("comms")}>Communications</button>
         </div>
 
         {tab === "details" && (
@@ -363,8 +365,8 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
             </div>
             {detailsError && <p className="tailor-error">{detailsError}</p>}
             <div className="modal-actions">
-              <button className="btn-danger" onClick={deleteCase}>Delete case</button>
-              <button className="btn-primary" onClick={saveDetails}>Save changes</button>
+              <button type="button" className="btn-danger" onClick={deleteCase}>Delete case</button>
+              <button type="button" className="btn-primary" onClick={saveDetails}>Save changes</button>
             </div>
           </div>
         )}
@@ -381,10 +383,10 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
                 onChange={e => setJobDescription(e.target.value)}
               />
               <div className="tailor-actions">
-                <button className="btn-primary" onClick={tailorFromJD} disabled={tailoring || !jobDescription.trim()}>
+                <button type="button" className="btn-primary" onClick={tailorFromJD} disabled={tailoring || !jobDescription.trim()}>
                   {tailoring ? "Matching..." : "Generate tailored resume"}
                 </button>
-                <button className="btn-secondary-inline" onClick={resetFromMaster}>
+                <button type="button" className="btn-secondary-inline" onClick={resetFromMaster}>
                   Reset to full master
                 </button>
                 {tailorError && <span className="tailor-error">{tailorError}</span>}
@@ -408,11 +410,13 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
                     <li key={row.module.id} className={row.included ? "matched" : "skipped"}>
                       <div className="match-order">
                         <button
+                          type="button"
                           disabled={i === 0}
                           onClick={() => moveRow(i, "up")}
                           title="Move up"
                         >↑</button>
                         <button
+                          type="button"
                           disabled={i === rows.length - 1}
                           onClick={() => moveRow(i, "down")}
                           title="Move down"
@@ -446,14 +450,17 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
 
             <div className="output-tabs">
               <button
+                type="button"
                 className={`output-tab ${output === "preview" ? "active" : ""}`}
                 onClick={() => showOutput("preview")}
               >Preview</button>
               <button
+                type="button"
                 className={`output-tab ${output === "text" ? "active" : ""}`}
                 onClick={() => showOutput("text")}
               >Plain text</button>
               <button
+                type="button"
                 className={`output-tab ${output === "latex" ? "active" : ""}`}
                 onClick={() => showOutput("latex")}
               >LaTeX</button>

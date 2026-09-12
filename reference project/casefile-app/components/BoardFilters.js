@@ -107,6 +107,7 @@ export default function BoardFilters({ apps, filters, onChange, today, resultCou
             <div className="preset-row">
               {DATE_PRESETS.map(p => (
                 <button
+                  type="button"
                   key={p.value}
                   className="preset-chip"
                   onClick={() => set(presetRange(p.value, today))}
@@ -116,6 +117,7 @@ export default function BoardFilters({ apps, filters, onChange, today, resultCou
               ))}
               {datesActive && (
                 <button
+                  type="button"
                   className="preset-chip"
                   onClick={() => set({ appliedFrom: "", appliedTo: "" })}
                 >
@@ -130,6 +132,7 @@ export default function BoardFilters({ apps, filters, onChange, today, resultCou
       <div className="filter-row-chips" role="group" aria-label="Filter by follow-up">
         {FOLLOWUP_FILTERS.map(f => (
           <button
+            type="button"
             key={f.value}
             className={`filter-chip ${f.value} ${filters.followUp === f.value ? "active" : ""}`}
             onClick={() => set({ followUp: f.value })}

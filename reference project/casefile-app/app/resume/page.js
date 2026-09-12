@@ -280,7 +280,7 @@ export default function ResumePage() {
   return (
     <div className="panel" style={{ maxWidth: 900 }}>
       <h2>Master Resume</h2>
-      <p className="hint">
+      <p className="hint hint-wide">
         Break your resume into modules — a summary, each job, each project, your
         skills. Each one carries its own dates, organisation and bullet points,
         so it can be typeset straight into the Jake&apos;s Resume LaTeX template.

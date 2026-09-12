@@ -7,7 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 const LINKS = [
   { href: "/", label: "Case Board", icon: "🗂" },
   { href: "/resume", label: "Master Resume", icon: "📄" },
-  { href: "/map", label: "Map", icon: "🌍" }
+  { href: "/map", label: "Map", icon: "🌍" },
+  { href: "/review", label: "Email Review", icon: "📥" }
 ];
 
 export default function Nav() {
@@ -19,7 +20,7 @@ export default function Nav() {
       <header className="masthead">
         <div className="masthead-inner">
           <div className="brand">
-            <div className="brand-tab"></div>
+            <img src="/logo.png" alt="Casefile logo" className="brand-tab" />
             <h1>Casefile</h1>
           </div>
           <nav className="views desktop-nav">
