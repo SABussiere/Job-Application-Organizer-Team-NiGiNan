@@ -112,5 +112,55 @@ export const db = {
     const counts = { applied: 0, interview: 0, offer: 0, rejected: 0 };
     apps.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
     return { total: apps.length, counts };
+  },
+
+  // -- Email integration: stored Google tokens + the sync review queue --
+
+  getGoogleTokens() {
+    return read().emailIntegration || null;
+  },
+
+  saveGoogleTokens(tokens, connectedEmail) {
+    const state = read();
+    state.emailIntegration = {
+      ...(state.emailIntegration || {}),
+      ...tokens,
+      ...(connectedEmail ? { connectedEmail } : {})
+    };
+    write(state);
+    return state.emailIntegration;
+  },
+
+  clearGoogleTokens() {
+    const state = read();
+    state.emailIntegration = null;
+    write(state);
+  },
+
+  listPendingEmailApplications() {
+    return read().pendingEmailApplications || [];
+  },
+
+  getPendingEmailApplication(id) {
+    return (read().pendingEmailApplications || []).find(p => p.id === id) || null;
+  },
+
+  addPendingEmailApplication(entry) {
+    const state = read();
+    state.pendingEmailApplications = state.pendingEmailApplications || [];
+    const record = { id: uid(), ...entry };
+    state.pendingEmailApplications.unshift(record);
+    write(state);
+    return record;
+  },
+
+  removePendingEmailApplication(id) {
+    const state = read();
+    const list = state.pendingEmailApplications || [];
+    const next = list.filter(p => p.id !== id);
+    const removed = next.length !== list.length;
+    state.pendingEmailApplications = next;
+    write(state);
+    return removed;
   }
 };

@@ -4,3 +4,5 @@ data/db.json
 .DS_Store
 .expo/
 *.log
+.env.local
+mobile/
