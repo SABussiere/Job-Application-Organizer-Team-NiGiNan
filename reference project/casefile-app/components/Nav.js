@@ -19,7 +19,7 @@ export default function Nav() {
       <header className="masthead">
         <div className="masthead-inner">
           <div className="brand">
-            <div className="brand-tab"></div>
+            <img src="/logo.png" alt="Casefile logo" className="brand-tab" />
             <h1>Casefile</h1>
           </div>
           <nav className="views desktop-nav">

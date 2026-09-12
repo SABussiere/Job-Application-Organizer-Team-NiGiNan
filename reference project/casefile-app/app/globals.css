@@ -47,7 +47,7 @@ a { color: inherit; }
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: var(--accent);
+  object-fit: cover;
   flex-shrink: 0;
 }
 .brand h1 {
