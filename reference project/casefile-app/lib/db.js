@@ -1,6 +1,6 @@
-// lib/db.js — minimal file-backed persistence for the hackathon prototype.
-// Swap this module out for Prisma/Postgres later without touching the API
-// route handlers, since they only ever call the functions exported here.
+// File-backed storage used only by the Gmail integration for local OAuth
+// tokens and the human review queue. Applications themselves live in
+// Firestore now, via lib/api.js.
 
 import fs from "fs";
 import path from "path";
@@ -17,7 +17,12 @@ function ensureDb() {
   if (!fs.existsSync(DB_FILE)) {
     fs.writeFileSync(
       DB_FILE,
-      JSON.stringify({ applications: [], masterResume: "", masterStories: [] }, null, 2)
+      JSON.stringify({
+        emailIntegration: null,
+        pendingEmailApplications: [],
+        processedEmailMessageIds: [],
+        processedEmailThreadIds: []
+      }, null, 2)
     );
   }
 }
@@ -26,10 +31,16 @@ function read() {
   ensureDb();
   const state = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return {
-    ...state,
-    applications: state.applications || [],
-    masterResume: state.masterResume || "",
-    masterStories: state.masterStories || []
+    emailIntegration: state.emailIntegration || null,
+    pendingEmailApplications: Array.isArray(state.pendingEmailApplications)
+      ? state.pendingEmailApplications
+      : [],
+    processedEmailMessageIds: Array.isArray(state.processedEmailMessageIds)
+      ? state.processedEmailMessageIds
+      : [],
+    processedEmailThreadIds: Array.isArray(state.processedEmailThreadIds)
+      ? state.processedEmailThreadIds
+      : []
   };
 }
 
@@ -39,114 +50,73 @@ function write(data) {
 }
 
 export const db = {
-  listApplications() {
-    return read().applications;
+  getGoogleTokens() {
+    return read().emailIntegration || null;
   },
 
-  getApplication(id) {
-    return read().applications.find(a => a.id === id) || null;
-  },
-
-  createApplication(data) {
+  saveGoogleTokens(tokens, connectedEmail) {
     const state = read();
-    const app = {
-      id: uid(),
-      company: data.company || "",
-      position: data.position || "",
-      dateApplied: data.dateApplied || new Date().toISOString().slice(0, 10),
-      status: data.status || "applied",
-      jobUrl: data.jobUrl || "",
-      location: data.location || "",
-      notes: data.notes || "",
-      followUpDate: data.followUpDate || "",
-      resumeVersion: data.resumeVersion ?? state.masterResume ?? "",
-      communications: [],
-      createdAt: new Date().toISOString()
+    state.emailIntegration = {
+      ...(state.emailIntegration || {}),
+      ...tokens,
+      ...(connectedEmail ? { connectedEmail } : {})
     };
-    state.applications.unshift(app);
     write(state);
-    return app;
+    return state.emailIntegration;
   },
 
-  updateApplication(id, patch) {
+  clearGoogleTokens() {
     const state = read();
-    const idx = state.applications.findIndex(a => a.id === id);
-    if (idx === -1) return null;
-    state.applications[idx] = { ...state.applications[idx], ...patch };
+    state.emailIntegration = null;
     write(state);
-    return state.applications[idx];
   },
 
-  deleteApplication(id) {
-    const state = read();
-    const next = state.applications.filter(a => a.id !== id);
-    const deleted = next.length !== state.applications.length;
-    state.applications = next;
-    write(state);
-    return deleted;
+  listPendingEmailApplications() {
+    return read().pendingEmailApplications || [];
   },
 
-  addCommunication(appId, comm) {
+  getPendingEmailApplication(id) {
+    return (read().pendingEmailApplications || []).find(p => p.id === id) || null;
+  },
+
+  addPendingEmailApplication(entry) {
     const state = read();
-    const idx = state.applications.findIndex(a => a.id === appId);
-    if (idx === -1) return null;
-    const entry = {
-      id: uid(),
-      date: comm.date || new Date().toISOString().slice(0, 10),
-      type: comm.type || "note",
-      text: comm.text || ""
+    state.pendingEmailApplications = state.pendingEmailApplications || [];
+    const record = { id: uid(), ...entry };
+    state.pendingEmailApplications.unshift(record);
+    write(state);
+    return record;
+  },
+
+  removePendingEmailApplication(id) {
+    const state = read();
+    const list = state.pendingEmailApplications || [];
+    const next = list.filter(p => p.id !== id);
+    const removed = next.length !== list.length;
+    state.pendingEmailApplications = next;
+    write(state);
+    return removed;
+  },
+
+  markEmailProcessed({ messageId, threadId }) {
+    const state = read();
+
+    if (messageId && !state.processedEmailMessageIds.includes(messageId)) {
+      state.processedEmailMessageIds.push(messageId);
+    }
+
+    if (threadId && !state.processedEmailThreadIds.includes(threadId)) {
+      state.processedEmailThreadIds.push(threadId);
+    }
+
+    write(state);
+  },
+
+  getProcessedEmailState() {
+    const state = read();
+    return {
+      messageIds: state.processedEmailMessageIds,
+      threadIds: state.processedEmailThreadIds
     };
-    state.applications[idx].communications = state.applications[idx].communications || [];
-    state.applications[idx].communications.unshift(entry);
-    write(state);
-    return state.applications[idx];
-  },
-
-  getMasterResume() {
-    return read().masterResume || "";
-  },
-
-  setMasterResume(text) {
-    const state = read();
-    state.masterResume = text;
-    write(state);
-    return state.masterResume;
-  },
-
-  getMasterStories() {
-    return read().masterStories || [];
-  },
-
-  setMasterStories(stories) {
-    const state = read();
-    state.masterStories = (stories || []).map(story => ({
-      id: story.id || uid(),
-      title: story.title || "",
-      role: story.role || "",
-      skills: Array.isArray(story.skills)
-        ? story.skills
-        : String(story.skills || "")
-            .split(",")
-            .map(skill => skill.trim())
-            .filter(Boolean),
-      situation: story.situation || "",
-      action: story.action || "",
-      result: story.result || "",
-      bullets: Array.isArray(story.bullets)
-        ? story.bullets
-        : String(story.bullets || "")
-            .split("\n")
-            .map(bullet => bullet.trim())
-            .filter(Boolean)
-    }));
-    write(state);
-    return state.masterStories;
-  },
-
-  getStats() {
-    const apps = read().applications;
-    const counts = { applied: 0, interview: 0, offer: 0, rejected: 0 };
-    apps.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
-    return { total: apps.length, counts };
   }
 };

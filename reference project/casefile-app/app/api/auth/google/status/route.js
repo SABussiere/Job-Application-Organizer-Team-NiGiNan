@@ -6,5 +6,7 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return withCors(db.getStats());
+  return withCors({
+    connected: Boolean(db.getGoogleTokens())
+  });
 }
