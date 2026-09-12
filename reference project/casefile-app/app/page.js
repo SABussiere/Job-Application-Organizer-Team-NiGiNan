@@ -136,8 +136,6 @@ export default function BoardPage() {
             Disconnect Gmail
           </button>
         )}
-        
-        {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
 
       {syncMessage && (
