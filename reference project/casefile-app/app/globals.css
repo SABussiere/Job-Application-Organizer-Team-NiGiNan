@@ -282,6 +282,8 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   padding: 8px 11px; font-size: 12px;
 }
 .match-list li.skipped { opacity: 0.55; }
+.match-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.match-check input { cursor: pointer; flex-shrink: 0; }
 .match-title { font-weight: 600; }
 .match-reason { color: var(--muted); }
 

@@ -9,6 +9,19 @@ function formatDate(dateStr) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Mirrors lib/matching.js's assembleResumeText, but works off the
+// match-summary rows (which already carry each module's content/order) so
+// toggling a checkbox can rebuild the draft instantly, client-side.
+function assembleFromSelection(matchSummary) {
+  return matchSummary
+    .filter(m => m.included)
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map(m => (m.title ? `${m.title}\n${m.content}` : m.content))
+    .join("\n\n")
+    .trim();
+}
+
 export default function ApplicationModal({ appId, onClose, onChanged }) {
   const [tab, setTab] = useState("details");
   const [app, setApp] = useState(null);
@@ -84,6 +97,14 @@ export default function ApplicationModal({ appId, onClose, onChanged }) {
     } finally {
       setTailoring(false);
     }
+  }
+
+  function toggleModuleIncluded(moduleId) {
+    const updated = matchSummary.map(m =>
+      m.moduleId === moduleId ? { ...m, included: !m.included } : m
+    );
+    setMatchSummary(updated);
+    setResumeText(assembleFromSelection(updated));
   }
 
   async function logComm(e) {
@@ -177,14 +198,22 @@ export default function ApplicationModal({ appId, onClose, onChanged }) {
               {matchSummary && (
                 <div className="match-summary">
                   <p className="hint" style={{ margin: "10px 0 6px" }}>
-                    Included {matchSummary.filter(m => m.score > 0 || m.alwaysIncluded).length} of {matchSummary.length} master modules:
+                    Included {matchSummary.filter(m => m.included).length} of {matchSummary.length} master modules.
+                    Uncheck any that don't fit — the draft below updates right away.
                   </p>
                   <ul className="match-list">
                     {matchSummary.map(m => (
-                      <li key={m.moduleId} className={m.score > 0 || m.alwaysIncluded ? "matched" : "skipped"}>
-                        <span className="match-title">{m.title || "(untitled)"}</span>
+                      <li key={m.moduleId} className={m.included ? "matched" : "skipped"}>
+                        <label className="match-check">
+                          <input
+                            type="checkbox"
+                            checked={m.included}
+                            onChange={() => toggleModuleIncluded(m.moduleId)}
+                          />
+                          <span className="match-title">{m.title || "(untitled)"}</span>
+                        </label>
                         {m.alwaysIncluded ? (
-                          <span className="match-reason">always included</span>
+                          <span className="match-reason">always included by default</span>
                         ) : m.matchedTags.length || m.matchedWords.length ? (
                           <span className="match-reason">
                             matched: {[...m.matchedTags, ...m.matchedWords].slice(0, 5).join(", ")}
