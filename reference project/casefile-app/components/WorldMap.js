@@ -68,6 +68,8 @@ function countByCountry(places) {
   return counts;
 }
 
+export { COUNTRIES, dominantStatus };
+
 export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey }) {
   const isGlobe = mode === "globe";
   const isHeat = view === "heat";
@@ -77,6 +79,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
   const [offset, setOffset] = useState([0, 0]);
   const [zoom, setZoom] = useState(1);
   const dragRef = useRef(null);
+  const wasDraggedRef = useRef(false);
 
   const places = useMemo(() => groupByPlace(apps), [apps]);
   const counts = useMemo(() => (isHeat ? countByCountry(places) : new Map()), [isHeat, places]);
@@ -111,34 +114,52 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
   }
 
   function onPointerDown(e) {
+    if (e.button !== 0) return;
+    wasDraggedRef.current = false;
     dragRef.current = {
-      x: e.clientX,
-      y: e.clientY,
+      startX: e.clientX,
+      startY: e.clientY,
+      isDragging: false,
       rotation: [...rotation],
       offset: [...offset]
     };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
   }
 
   function onPointerMove(e) {
     const drag = dragRef.current;
     if (!drag) return;
-    const dx = e.clientX - drag.x;
-    const dy = e.clientY - drag.y;
+    const totalDx = e.clientX - drag.startX;
+    const totalDy = e.clientY - drag.startY;
+
+    if (!drag.isDragging) {
+      if (Math.hypot(totalDx, totalDy) > 4) {
+        drag.isDragging = true;
+        wasDraggedRef.current = true;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      } else {
+        return;
+      }
+    }
+
     if (isGlobe) {
       // Slower than 1:1 so a small drag doesn't spin the world away, and
       // latitude is clamped so it can't tumble past the poles.
-      const lambda = drag.rotation[0] + dx * 0.35;
-      const phi = Math.max(-90, Math.min(90, drag.rotation[1] - dy * 0.35));
+      const lambda = drag.rotation[0] + totalDx * 0.35;
+      const phi = Math.max(-90, Math.min(90, drag.rotation[1] - totalDy * 0.35));
       setRotation([lambda, phi]);
     } else {
-      setOffset([drag.offset[0] + dx, drag.offset[1] + dy]);
+      setOffset([drag.offset[0] + totalDx, drag.offset[1] + totalDy]);
     }
   }
 
   function onPointerUp(e) {
+    if (dragRef.current?.isDragging) {
+      wasDraggedRef.current = true;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    }
     dragRef.current = null;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
   }
 
   function reset() {
@@ -207,10 +228,19 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
               key={place.key}
               className={`map-pin ${isSelected ? "selected" : ""}`}
               transform={`translate(${x},${y})`}
-              onClick={e => { e.stopPropagation(); onSelectPlace(place); }}
+              onClick={e => {
+                if (wasDraggedRef.current) return;
+                e.stopPropagation();
+                onSelectPlace(place);
+              }}
               role="button"
               tabIndex={0}
-              onKeyDown={e => { if (e.key === "Enter") onSelectPlace(place); }}
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectPlace(place);
+                }
+              }}
             >
               <title>
                 {`${place.geo.city}${place.geo.country ? `, ${place.geo.country}` : ""} — ` +
