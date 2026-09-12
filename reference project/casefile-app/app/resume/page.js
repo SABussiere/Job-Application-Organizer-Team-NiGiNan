@@ -4,6 +4,30 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { MODULE_TYPES } from "@/lib/constants";
 
+const previewModules = [
+  {
+    type: "summary",
+    title: "Professional Summary",
+    content: "Software engineer focused on building reliable web applications and user-friendly tools.",
+    tags: ["javascript", "react", "web development"],
+    alwaysInclude: true
+  },
+  {
+    type: "experience",
+    title: "Software Engineer — Example Company",
+    content: "Built responsive React interfaces.\nCollaborated with designers and backend engineers.\nImproved application performance and usability.",
+    tags: ["react", "javascript", "frontend"],
+    alwaysInclude: false
+  },
+  {
+    type: "skill",
+    title: "Technical Skills",
+    content: "JavaScript, React, Next.js, Node.js, Firebase, Git",
+    tags: ["javascript", "react", "nextjs", "firebase"],
+    alwaysInclude: true
+  }
+];
+
 function ModuleCard({ module, onSaved, onDeleted, onReorder, isFirst, isLast }) {
   const [form, setForm] = useState({
     type: module.type,
@@ -96,9 +120,26 @@ export default function ResumePage() {
   const [preview, setPreview] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  function load() {
+  async function load() {
     setLoading(true);
-    api.listResumeModules().then(data => { setModules(data); setLoading(false); });
+
+    const data = await api.listResumeModules();
+
+    if (data.length === 0) {
+      const createdModules = [];
+
+      for (const module of previewModules) {
+        const created = await api.createResumeModule(module);
+        createdModules.push(created);
+      }
+    
+      setModules(createdModules);
+    }
+    else {
+      setModules(data);
+    }
+
+    setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
