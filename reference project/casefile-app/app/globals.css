@@ -127,10 +127,10 @@ a { color: inherit; }
 /* ---------- Board ---------- */
 .board-toolbar {
   display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
 }
-.board-toolbar > .board-filters { flex: 1; min-width: 280px; }
-.board-toolbar > .btn-stamp { flex-shrink: 0; }
+.board-toolbar-main { flex: 1; min-width: 0; }
+.board-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 .sync-toast {
   position: fixed;
   left: 50%;
@@ -568,7 +568,12 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .active-chip-x { font-size: 14px; line-height: 1; }
 .filter-count { font-size: 12.5px; color: var(--muted); }
 
-.filter-row-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-row-chips {
+  display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+}
+.filter-chip { flex-shrink: 0; }
 
 .filter-row-advanced {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -594,12 +599,16 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .preset-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 .filter-summary {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   font-size: 12.5px; color: var(--muted);
 }
+.active-chip { flex-shrink: 0; }
+.filter-count { white-space: nowrap; flex-shrink: 0; }
 .btn-link {
   background: none; border: none; padding: 0; font: inherit; font-size: 12.5px;
-  color: var(--accent); cursor: pointer; text-decoration: underline;
+  color: var(--accent); cursor: pointer; text-decoration: underline; white-space: nowrap; flex-shrink: 0;
 }
 
 /* ---------- Modal heading (create + edit) ---------- */
@@ -639,7 +648,8 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .sheet-panel { margin-top: 4px; }
 .sheet-frame {
   background: #7A7A7E; padding: 18px; border-radius: 10px;
-  overflow-x: auto; margin-top: 12px;
+  overflow: auto; max-height: 560px; margin-top: 12px;
+  scrollbar-width: thin;
 }
 
 /* 8.5in wide with 0.5in margins, matching the LaTeX template's geometry.
@@ -680,7 +690,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 @media (max-width: 900px) {
   /* Scale the whole sheet down rather than reflowing it, so the phone
      preview still shows real page proportions instead of a fake layout. */
-  .sheet-frame { padding: 10px; height: calc(11in * 0.46 + 20px); overflow: hidden; }
+  .sheet-frame { padding: 10px; max-height: calc(11in * 0.46 + 20px); overflow: auto; }
   .sheet-frame .resume-sheet,
   .print-stage .resume-sheet { transform: scale(0.46); transform-origin: top left; margin: 0; }
   .print-stage { padding: 12px; height: calc(11in * 0.46 + 24px); min-height: 0; overflow: hidden; }
