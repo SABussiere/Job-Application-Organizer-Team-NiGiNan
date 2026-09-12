@@ -6,3 +6,12 @@ export const STAGE_META = {
   offer: { label: "Offer", color: "#C89B3C" },
   rejected: { label: "Rejected", color: "#A8503A" }
 };
+
+export const MODULE_TYPES = [
+  { value: "summary", label: "Summary" },
+  { value: "experience", label: "Experience" },
+  { value: "project", label: "Project" },
+  { value: "skill", label: "Skills" },
+  { value: "education", label: "Education" },
+  { value: "other", label: "Other" }
+];

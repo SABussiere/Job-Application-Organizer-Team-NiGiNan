@@ -218,7 +218,73 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .board-toolbar .btn-stamp { width: 100%; padding: 13px; }
 }
 
-/* ---------- Modal ---------- */
+/* ---------- Resume modules ---------- */
+.module-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.module-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.module-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.module-type-select {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); border: none; border-radius: 6px; padding: 5px 10px;
+}
+.module-reorder { display: flex; gap: 4px; }
+.module-reorder button {
+  width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.module-reorder button:disabled { opacity: 0.35; cursor: default; }
+.module-title-input {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-weight: 600; background: var(--surface); color: var(--ink); margin-bottom: 8px;
+}
+.module-content-input {
+  width: 100%; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13.5px; line-height: 1.5; background: var(--surface); color: var(--ink);
+  resize: vertical; margin-bottom: 8px; font-family: 'Inter', sans-serif;
+}
+.module-tags-input {
+  width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 12.5px; background: var(--surface); color: var(--ink); margin-bottom: 10px;
+}
+.module-card-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.module-always { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.module-actions { display: flex; gap: 8px; }
+.module-list-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.resume-preview {
+  white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-top: 14px; font-size: 12.5px; line-height: 1.6;
+  font-family: 'Inter', sans-serif; max-height: 400px; overflow-y: auto;
+}
+
+/* ---------- Tailoring box ---------- */
+.tailor-box {
+  background: var(--accent-soft);
+  border: 1px solid #cfe3dd;
+  border-radius: 10px;
+  padding: 16px;
+}
+.tailor-label { display: block; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.jd-input {
+  width: 100%; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: 'Inter', sans-serif; background: var(--surface); color: var(--ink); resize: vertical;
+}
+.tailor-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.tailor-error { color: var(--rejected); font-size: 12.5px; }
+.match-summary { margin-top: 4px; }
+.match-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.match-list li {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; font-size: 12px;
+}
+.match-list li.skipped { opacity: 0.55; }
+.match-title { font-weight: 600; }
+.match-reason { color: var(--muted); }
+
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(24, 24, 27, 0.4); z-index: 50;
   display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto;

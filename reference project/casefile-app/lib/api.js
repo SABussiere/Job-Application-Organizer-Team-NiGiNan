@@ -23,7 +23,15 @@ export const api = {
   deleteApplication: id => request(`/applications/${id}`, { method: "DELETE" }),
   addCommunication: (id, comm) =>
     request(`/applications/${id}/communications`, { method: "POST", body: JSON.stringify(comm) }).then(d => d.application),
-  getMasterResume: () => request("/resume").then(d => d.masterResume),
-  setMasterResume: text => request("/resume", { method: "PUT", body: JSON.stringify({ text }) }).then(d => d.masterResume),
+  tailorApplication: (id, jobDescription) =>
+    request(`/applications/${id}/tailor`, { method: "POST", body: JSON.stringify({ jobDescription }) }),
+
+  listResumeModules: () => request("/resume-modules").then(d => d.modules),
+  createResumeModule: data => request("/resume-modules", { method: "POST", body: JSON.stringify(data) }).then(d => d.module),
+  updateResumeModule: (id, patch) => request(`/resume-modules/${id}`, { method: "PATCH", body: JSON.stringify(patch) }).then(d => d.module),
+  deleteResumeModule: id => request(`/resume-modules/${id}`, { method: "DELETE" }),
+  reorderResumeModule: (id, direction) => request(`/resume-modules/${id}/reorder`, { method: "POST", body: JSON.stringify({ direction }) }).then(d => d.modules),
+  getFullMasterResumeText: () => request("/resume-modules/full").then(d => d.text),
+
   getStats: () => request("/stats")
 };
