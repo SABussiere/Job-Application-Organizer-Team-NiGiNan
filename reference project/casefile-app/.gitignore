@@ -1,6 +1,10 @@
 node_modules/
 .next/
-data/db.json
 .DS_Store
 .expo/
 *.log
+
+# Firebase config for local dev. The values are public (they identify the
+# project, they are not secrets), but each developer points at their own
+# project, so this stays out of the repo. See .env.local.example.
+.env*.local

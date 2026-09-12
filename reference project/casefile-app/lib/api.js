@@ -1,9 +1,14 @@
 // lib/api.js — talks to Firestore directly from the browser. There's no
 // server API layer: each signed-in user's data lives under
-// users/{uid}/applications and users/{uid}/masterModules, and firestore.rules
-// enforce that a user can only read/write their own subtree. Every function
-// here keeps the exact name/shape it had when this went through /api routes,
-// so no component had to change when the storage swapped out.
+// users/{uid}/applications, users/{uid}/masterModules and a single
+// users/{uid}/meta/resumeProfile document, and firestore.rules enforce that a
+// user can only read or write their own subtree.
+//
+// Every function keeps the name and return shape it had when this went
+// through /api routes, so components didn't change when storage swapped out.
+// LaTeX and plain-text rendering are pure functions (lib/latex.js,
+// lib/matching.js), so they run here in the browser instead of needing a
+// server round trip.
 
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
@@ -11,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { auth, firestore } from "./firebaseClient";
 import { scoreModules, selectModules, assembleResumeText } from "./matching";
+import { renderLatexResume } from "./latex";
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -30,14 +36,61 @@ function modulesCol() {
   return collection(firestore, "users", requireUser(), "masterModules");
 }
 
-function toObject(snap) {
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+// A document rather than a collection: the resume heading is one record
+// (name, contact details, links).
+function profileDoc() {
+  return doc(firestore, "users", requireUser(), "meta", "resumeProfile");
+}
+
+const EMPTY_PROFILE = { name: "", email: "", phone: "", location: "", links: [] };
+
+/**
+ * Fills in fields a document may predate. Firestore has no migration step, so
+ * documents written before the structured-module and job-type work keep
+ * whatever they had; normalising on read means the UI and the LaTeX renderer
+ * always see a complete shape.
+ */
+function withModuleDefaults(module) {
+  return {
+    type: "other",
+    title: "",
+    organization: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    content: "",
+    ...module,
+    bullets: Array.isArray(module.bullets) ? module.bullets.map(String) : [],
+    tags: Array.isArray(module.tags) ? module.tags : [],
+    alwaysInclude: !!module.alwaysInclude
+  };
+}
+
+function withApplicationDefaults(app) {
+  return {
+    requisitionId: "",
+    jobType: "",
+    location: "",
+    notes: "",
+    jobUrl: "",
+    followUpDate: "",
+    jobDescription: "",
+    tailoredFrom: null,
+    ...app,
+    communications: Array.isArray(app.communications) ? app.communications : []
+  };
+}
+
+/** Modules named by `ids`, in the order the ids were given. */
+function orderByIds(modules, ids) {
+  const byId = new Map(modules.map(m => [m.id, m]));
+  return (ids || []).map(id => byId.get(id)).filter(Boolean);
 }
 
 export const api = {
   async listApplications() {
     const snap = await getDocs(query(applicationsCol(), orderBy("createdAt", "desc")));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map(d => withApplicationDefaults({ id: d.id, ...d.data() }));
   },
 
   async createApplication(data) {
@@ -46,6 +99,8 @@ export const api = {
     const app = {
       company: data.company || "",
       position: data.position || "",
+      requisitionId: data.requisitionId || "",
+      jobType: data.jobType || "",
       dateApplied: data.dateApplied || new Date().toISOString().slice(0, 10),
       status: data.status || "applied",
       jobUrl: data.jobUrl || "",
@@ -53,6 +108,11 @@ export const api = {
       notes: data.notes || "",
       followUpDate: data.followUpDate || "",
       resumeVersion: data.resumeVersion ?? assembleResumeText(modules),
+      // Ordered master-module ids making up this case's tailored resume.
+      // Starts as the full master, in master order.
+      resumeModuleIds: Array.isArray(data.resumeModuleIds)
+        ? data.resumeModuleIds
+        : modules.map(m => m.id),
       jobDescription: data.jobDescription || "",
       tailoredFrom: null,
       communications: [],
@@ -63,13 +123,13 @@ export const api = {
   },
 
   async getApplication(id) {
-    return toObject(await getDoc(doc(applicationsCol(), id)));
+    const snap = await getDoc(doc(applicationsCol(), id));
+    return snap.exists() ? withApplicationDefaults({ id: snap.id, ...snap.data() }) : null;
   },
 
   async updateApplication(id, patch) {
-    const ref = doc(applicationsCol(), id);
-    await updateDoc(ref, patch);
-    return toObject(await getDoc(ref));
+    await updateDoc(doc(applicationsCol(), id), patch);
+    return api.getApplication(id);
   },
 
   async deleteApplication(id) {
@@ -89,7 +149,7 @@ export const api = {
     };
     const communications = [entry, ...(existing.data().communications || [])];
     await updateDoc(ref, { communications });
-    return { id: appId, ...existing.data(), communications };
+    return withApplicationDefaults({ id: appId, ...existing.data(), communications });
   },
 
   async tailorApplication(appId, jobDescription) {
@@ -100,10 +160,12 @@ export const api = {
 
     const { selected } = selectModules(jobDescription, modules);
     const resumeVersion = assembleResumeText(selected);
-    const selectedIds = new Set(selected.map(m => m.id));
+    const selectedIds = selected.map(m => m.id);
+    const chosen = new Set(selectedIds);
 
     const application = await api.updateApplication(appId, {
       resumeVersion,
+      resumeModuleIds: selectedIds,
       jobDescription,
       tailoredFrom: {
         generatedAt: new Date().toISOString(),
@@ -112,41 +174,84 @@ export const api = {
       }
     });
 
-    // Score every master module (not just the ones that made the cut) so the
-    // UI can show the full picture and let the user manually check/uncheck
-    // any of them.
-    const matchSummary = scoreModules(jobDescription, modules).map(d => ({
-      moduleId: d.module.id,
-      title: d.module.title,
-      content: d.module.content,
-      order: d.module.order,
-      score: d.score,
-      alwaysIncluded: !!d.module.alwaysInclude,
-      included: selectedIds.has(d.module.id),
-      matchedTags: d.matchedTags,
-      matchedWords: d.matchedWords
-    }));
+    // Score every master module, not just the ones that made the cut, so the
+    // UI can show the full picture and let the user check, uncheck and
+    // reorder any of them. The whole module rides along so the client can
+    // reassemble the resume without another read.
+    const byId = new Map(
+      scoreModules(jobDescription, modules).map(d => [
+        d.module.id,
+        {
+          moduleId: d.module.id,
+          module: d.module,
+          score: d.score,
+          alwaysIncluded: !!d.module.alwaysInclude,
+          included: chosen.has(d.module.id),
+          matchedTags: d.matchedTags,
+          matchedWords: d.matchedWords
+        }
+      ])
+    );
+
+    // Selected first, in resume order, then everything left out — so the list
+    // reads top to bottom like the document it produces.
+    const matchSummary = [
+      ...selectedIds.map(id => byId.get(id)),
+      ...modules.filter(m => !chosen.has(m.id)).map(m => byId.get(m.id))
+    ].filter(Boolean);
 
     return { application, matchSummary };
   },
 
+  // ---------- Resume heading ----------
+
+  async getResumeProfile() {
+    const snap = await getDoc(profileDoc());
+    const stored = snap.exists() ? snap.data() : {};
+    return {
+      ...EMPTY_PROFILE,
+      ...stored,
+      links: Array.isArray(stored.links) ? stored.links : []
+    };
+  },
+
+  async updateResumeProfile(patch) {
+    const current = await api.getResumeProfile();
+    const links = Array.isArray(patch.links)
+      ? patch.links
+          .filter(l => l && (l.url || l.label))
+          .map(l => ({ label: l.label || "", url: l.url || "" }))
+      : current.links;
+    const profile = { ...current, ...patch, links };
+    // Merged set rather than update: the document may not exist yet.
+    await setDoc(profileDoc(), profile, { merge: true });
+    return profile;
+  },
+
+  // ---------- Master resume modules ----------
+
   async listResumeModules() {
     const snap = await getDocs(query(modulesCol(), orderBy("order")));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map(d => withModuleDefaults({ id: d.id, ...d.data() }));
   },
 
   async createResumeModule(data) {
     const modules = await api.listResumeModules();
     const maxOrder = modules.reduce((max, m) => Math.max(max, m.order ?? 0), -1);
     const ref = doc(modulesCol());
-    const module = {
+    const module = withModuleDefaults({
       type: data.type || "other",
       title: data.title || "",
+      organization: data.organization || "",
+      location: data.location || "",
+      startDate: data.startDate || "",
+      endDate: data.endDate || "",
       content: data.content || "",
+      bullets: Array.isArray(data.bullets) ? data.bullets : [],
       tags: Array.isArray(data.tags) ? data.tags : [],
       alwaysInclude: !!data.alwaysInclude,
       order: maxOrder + 1
-    };
+    });
     await setDoc(ref, module);
     return { id: ref.id, ...module };
   },
@@ -154,11 +259,24 @@ export const api = {
   async updateResumeModule(id, patch) {
     const ref = doc(modulesCol(), id);
     await updateDoc(ref, patch);
-    return toObject(await getDoc(ref));
+    const snap = await getDoc(ref);
+    return snap.exists() ? withModuleDefaults({ id: snap.id, ...snap.data() }) : null;
   },
 
   async deleteResumeModule(id) {
-    await deleteDoc(doc(modulesCol(), id));
+    // A deleted module must also drop out of every tailored selection that
+    // referenced it, or a resume would render from a module that's gone.
+    const apps = await api.listApplications();
+    const affected = apps.filter(a => (a.resumeModuleIds || []).includes(id));
+
+    const batch = writeBatch(firestore);
+    batch.delete(doc(modulesCol(), id));
+    affected.forEach(a => {
+      batch.update(doc(applicationsCol(), a.id), {
+        resumeModuleIds: a.resumeModuleIds.filter(mid => mid !== id)
+      });
+    });
+    await batch.commit();
     return true;
   },
 
@@ -183,8 +301,41 @@ export const api = {
   },
 
   async getFullMasterResumeText() {
-    const modules = await api.listResumeModules();
-    return assembleResumeText(modules);
+    return assembleResumeText(await api.listResumeModules());
+  },
+
+  // ---------- LaTeX, rendered in the browser (lib/latex.js is pure) --------
+
+  async getMasterLatex() {
+    const [profile, modules] = await Promise.all([
+      api.getResumeProfile(),
+      api.listResumeModules()
+    ]);
+    return renderLatexResume(profile, modules, { sortByTypeOrder: true });
+  },
+
+  /** LaTeX for an explicit, ordered subset — used by the tailored view. */
+  async renderLatex(moduleIds) {
+    const [profile, modules] = await Promise.all([
+      api.getResumeProfile(),
+      api.listResumeModules()
+    ]);
+    return renderLatexResume(profile, orderByIds(modules, moduleIds));
+  },
+
+  async getApplicationLatex(id) {
+    const [app, profile, modules] = await Promise.all([
+      api.getApplication(id),
+      api.getResumeProfile(),
+      api.listResumeModules()
+    ]);
+    if (!app) throw new Error("Application not found");
+    const hasSelection = Array.isArray(app.resumeModuleIds);
+    return renderLatexResume(
+      profile,
+      hasSelection ? orderByIds(modules, app.resumeModuleIds) : modules,
+      { sortByTypeOrder: !hasSelection }
+    );
   },
 
   async getStats() {
