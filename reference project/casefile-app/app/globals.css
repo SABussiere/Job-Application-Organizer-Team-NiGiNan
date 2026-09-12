@@ -771,6 +771,245 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .suggest-option.highlight { background: var(--accent-soft); color: var(--accent); }
 .field-note { font-size: 11px; color: var(--muted); margin: 5px 0 0; line-height: 1.4; }
 
+<<<<<<< HEAD
+/* ---------- Verified location picker ---------- */
+.loc-wrap { position: relative; }
+.loc-wrap input {
+  width: 100%; padding: 9px 11px; font-family: inherit; font-size: 13.5px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--surface); color: var(--ink);
+}
+
+/* Settled state: what is stored, plus how it was arrived at. */
+.loc-current {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; min-height: 40px; padding: 9px 11px; text-align: left;
+  font-family: inherit; font-size: 13.5px; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--ink);
+}
+.loc-current:hover { border-color: var(--border-strong); }
+.loc-current.legacy { border-color: var(--offer); background: #FEFBF4; }
+.loc-current.unknown .loc-current-text { color: var(--muted); }
+.loc-current-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.loc-badge {
+  flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+  text-transform: uppercase; padding: 3px 7px; border-radius: 4px;
+}
+.loc-badge.verified { background: var(--accent-soft); color: var(--accent); }
+.loc-badge.unknown { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+.loc-badge.legacy { background: #FEF6E7; color: #9A6400; }
+
+.loc-panel {
+  position: absolute; z-index: 55; top: calc(100% + 3px); left: 0; right: 0;
+  padding: 4px; max-height: 290px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 9px; box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+}
+.loc-option {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  min-height: 40px; padding: 8px 10px; font: inherit; font-size: 13px;
+  background: none; border: none; border-radius: 6px; color: var(--ink); cursor: pointer;
+}
+.loc-option.highlight { background: var(--accent-soft); }
+.loc-option-main { font-weight: 600; }
+.loc-option-note { font-size: 11.5px; color: var(--muted); }
+
+.loc-note { font-size: 12px; margin: 7px 10px; color: var(--muted); line-height: 1.5; }
+.loc-note.error { color: var(--rejected); }
+.loc-note.warn { color: #9A6400; }
+
+.loc-panel-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 4px; padding: 8px 10px 4px; border-top: 1px solid var(--border);
+}
+.loc-unknown {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  padding: 7px 11px; min-height: 36px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--muted);
+}
+.loc-unknown:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Neutral tag for the fixed-vocabulary fields on a card. */
+.card .plain-tag {
+  font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+}
+
+/* ---------- Map tab ---------- */
+.map-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.map-title { font-size: 18px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+.map-mode { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+
+.stage-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 12px; font-size: 12.5px; font-weight: 500; font-family: inherit;
+  color: var(--muted); cursor: pointer; min-height: 38px;
+}
+.stage-chip:hover { border-color: var(--border-strong); }
+.stage-chip:not(.active) { opacity: 0.55; }
+
+.map-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px; margin-top: 16px; align-items: start;
+}
+
+.map-stage { position: relative; width: 100%; }
+.map-stage.globe { max-width: 620px; margin: 0 auto; }
+.world-map {
+  width: 100%; height: auto; display: block; touch-action: none; cursor: grab;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+}
+.world-map:active { cursor: grabbing; }
+.world-map.globe { width: 100%; }
+
+.map-ocean { fill: #EAF1F4; }
+.map-outline { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.map-graticule { fill: none; stroke: var(--border); stroke-width: 0.5; }
+.map-country { fill: #DDE3E6; stroke: var(--surface); stroke-width: 0.4; }
+.map-country.has-data { stroke: var(--surface); stroke-width: 0.7; }
+.map-country.has-places { cursor: pointer; }
+.map-country.has-places:hover { stroke: var(--ink); stroke-width: 1; }
+.map-country.selected { stroke: var(--ink); stroke-width: 1.5; }
+
+.map-pin { cursor: pointer; }
+/* Invisible but hit-testable: a painted fill at zero opacity still receives
+   pointer events, which is what makes a small pin clickable. `fill: none`
+   would not, so this must keep a real paint value. */
+.map-pin-hit { fill: #000; opacity: 0; }
+.map-pin-dot { stroke: #fff; stroke-width: 1.6; }
+.map-pin:hover .map-pin-dot { stroke-width: 2.6; }
+.map-pin.selected .map-pin-dot { stroke: var(--ink); stroke-width: 2.6; }
+.map-pin-count {
+  fill: #fff; font-size: 9px; font-weight: 700; text-anchor: middle;
+  pointer-events: none; font-family: 'Inter', sans-serif;
+}
+
+.map-controls {
+  position: absolute; top: 10px; right: 10px; z-index: 5;
+  display: flex; gap: 4px;
+}
+.map-controls button {
+  min-width: 34px; min-height: 34px; padding: 0 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+  font-size: 15px; font-family: inherit; color: var(--ink); cursor: pointer;
+}
+.map-controls button:hover { border-color: var(--accent); color: var(--accent); }
+.map-controls .map-reset { font-size: 12px; font-weight: 600; }
+
+.map-legend {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 10px; font-size: 12px; color: var(--muted);
+}
+.map-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.map-legend-note { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; }
+
+.map-side {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px;
+}
+.map-side-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.map-side-head h3 { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+/* Scrolling read-only detail for the cases at one pin. */
+.pc-list {
+  list-style: none; padding: 0; margin: 0;
+  max-height: 460px; overflow-y: auto;
+  /* Room for the scrollbar so it never sits on the card border. */
+  padding-right: 4px;
+}
+.pc-item {
+  padding: 12px 13px; margin-bottom: 10px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+}
+.pc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.pc-position { font-weight: 600; font-size: 13.5px; line-height: 1.3; }
+.pc-stage {
+  flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+  text-transform: uppercase; color: #fff; padding: 3px 7px; border-radius: 4px;
+}
+.pc-company { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pc-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+.pc-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.pc-row { display: flex; gap: 8px; font-size: 12px; line-height: 1.45; }
+.pc-label {
+  flex: 0 0 78px; color: var(--muted); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; padding-top: 1px;
+}
+.pc-value { flex: 1; min-width: 0; color: var(--ink); word-break: break-word; }
+.pc-notes {
+  margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+  white-space: pre-wrap; max-height: 96px; overflow-y: auto;
+}
+.pc-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 11px;
+}
+.pc-open {
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 7px 12px; min-height: 34px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--ink);
+}
+.pc-open:hover { border-color: var(--accent); color: var(--accent); }
+
+.map-side-count {
+  display: block; font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px;
+}
+
+.map-missing {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.map-missing h4 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted); margin: 0 0 8px;
+}
+.map-missing p { font-size: 12px; color: var(--muted); margin: 0 0 7px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .map-layout { grid-template-columns: 1fr; }
+  .map-side { order: 2; }
+}
+
+@media (max-width: 640px) {
+  .map-header { align-items: stretch; }
+  .map-mode { align-self: stretch; }
+  .map-mode .output-tab { flex: 1; text-align: center; }
+  .loc-field input { padding-right: 80px; }
+  .map-controls button { min-width: 40px; min-height: 40px; }
+}
+
+/* ---------- Heat map legend ---------- */
+.map-switches { display: flex; gap: 16px; flex-wrap: wrap; }
+.map-legend-title {
+  flex-basis: 100%; font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.heat-scale { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.heat-step {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted);
+}
+.heat-swatch {
+  width: 18px; height: 11px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+@media (max-width: 640px) {
+  .map-switches { flex-direction: column; gap: 8px; }
+  .pc-list { max-height: none; }
+  .pc-label { flex-basis: 70px; }
+}
+
 /* ---------- Auth splash screen ---------- */
 .auth-screen {
   position: relative;

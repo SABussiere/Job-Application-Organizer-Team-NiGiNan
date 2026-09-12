@@ -94,6 +94,131 @@ one file that knows about Firestore; every component just calls
 `api.listApplications()`, `api.createResumeModule(...)`, etc., same as
 before.
 
+## Verified locations
+
+A location is either a place that was matched against a real gazetteer, or
+explicitly **Unknown**. There is no third option: what you type is a search
+query, not a value, and the case only takes a location when you pick a match
+or choose Unknown. Abandoning a half-typed query restores whatever was set
+before.
+
+That rule is the reason the Map tab can be trusted. Every location on the
+board is either a real point or an admitted blank, never a plausible-looking
+string nobody checked. Picking a match stores the canonical string
+("Toronto, ON, Canada") plus a `geo` object with city, region, country and
+coordinates; Unknown stores no coordinates and so never appears on the map.
+
+The provider is [Open-Meteo's geocoding API][om]: no API key, no billing
+account, nothing for a teammate to configure, and it sends
+`access-control-allow-origin: *` so the browser calls it directly. That keeps
+the app free of a server layer, the same way Firestore does. Province and
+state names are abbreviated for Canada and the US so the stored string reads
+the way postings write it; elsewhere the full region name is kept.
+
+Everything goes through `searchPlaces()` in `lib/geocode.js`, so moving to a
+keyed provider later means rewriting one function.
+
+Two conveniences: verified locations already on your board are offered
+before any network call, so a repeat is one tap and keeps its coordinates;
+and whether a job is remote is a separate field (see below), so "Remote"
+never has to be typed into the location.
+
+**Legacy values.** Cases saved before checking was required can still hold
+specific-looking text with no coordinates. Those are badged `needs checking`,
+counted separately on the map, and cannot be re-saved: the case modal refuses
+to save until the location is either matched or set to Unknown. Normalising
+them automatically would have meant either inventing coordinates or throwing
+away what someone wrote.
+
+Coverage is a genuine limit. The dataset matches on place name, so a city
+commonly known by another name will not be found under the one you type
+(searching Bangalore finds a town in Pakistan; Bengaluru finds the Indian
+city). Unknown is the escape hatch, and a keyed provider would handle
+aliases properly.
+
+## Employment and location type
+
+Two short fixed vocabularies, separate from the free-text `jobType` that
+describes the kind of work:
+
+| Field | Values |
+|-------|--------|
+| `employmentType` | Unknown, Full-time, Part-time, Contract, Internship |
+| `locationType` | Unknown, On-site, Hybrid, Remote |
+
+Both default to Unknown, because a posting does not always say, and both are
+multi-select filters on the board. Values are stored as the label you see
+rather than as codes, so filters, chips and cards need no lookup table; the
+tradeoff is that renaming a label would orphan existing data, which is the
+right trade at this size. Neither shows as a tag on a card while it is
+Unknown, since that would put a meaningless label on most of them.
+
+Splitting `locationType` out is what lets the location field stay strict.
+A remote job can still be anchored to a city and appear on the map, and a
+job whose city you do not know yet is Unknown regardless of whether it is
+remote.
+
+[om]: https://open-meteo.com/en/docs/geocoding-api
+
+## Map tab
+
+A world map of everywhere you have applied. Two independent switches, so any
+combination works:
+
+| Switch | Options |
+|--------|---------|
+| Projection | Flat map, Globe (drag to rotate) |
+| Encoding | Pins, Heat |
+
+Both are plain SVG over the same data.
+
+- **Pins** takes the colour of its **furthest-along** case, so a city where
+  you have an offer and three rejections reads as an offer, and carries a
+  count when it holds more than one case
+- **Heat** shades each country by how many applications it holds, on a
+  single-hue teal ramp. Pins stay visible but smaller, so selecting a city
+  still works, and hovering a shaded country gives its count
+- Selecting a pin opens a scrolling read-only panel beside the map with the
+  full detail of every case there: stage, job type, employment, on-site or
+  remote, requisition ID, follow-up status, contact-log count, notes and a
+  link to the posting. Editing stays behind an explicit **Open case** button
+- The stage chips filter which cases are plotted at all
+- Drag to rotate the globe or pan the flat map, and zoom with + and −
+
+### Why teal, and why point-in-polygon
+
+The heat ramp is one hue light to dark, because it encodes magnitude. Teal
+rather than the more usual blue: the board already uses blue to mean the
+Applied stage, and one colour meaning two things on one screen is worse than
+an unconventional hue. Steps are anchored on the app's own accent tokens and
+checked for monotonically falling OKLab lightness across a 6 degree hue
+spread, which is the check that matters for a sequential ramp. Counts are
+small integers, so the scale uses explicit bins (1, 2–3, 4–6, 7–10, 11+)
+rather than a continuous gradient: a reader can map a shade back to a number.
+Countries with nothing keep the basemap grey, so zero never reads as low.
+
+Counting per country is point-in-polygon (`geoContains`), not a name match,
+because the gazetteer and the basemap disagree on names. The gazetteer says
+"United States" and the basemap says "United States of America", so matching
+on names would have silently dropped every US application from the heat map.
+
+**Topographic relief is not here, and is not cheap.** Terrain shading needs an
+elevation raster or hillshade tiles, which means a tile provider and a key, or
+bundling a dataset orders of magnitude larger than the 108KB of outlines.
+Everything else on this map works offline with no account, and that seemed
+worth more than relief the data does not need.
+
+Country outlines come from a bundled 108KB TopoJSON file (`world-atlas` at
+110m resolution) projected with `d3-geo`, not from map tiles. No tile server,
+no API key, and the map works offline. The globe uses an orthographic
+projection, with pins on the far side hidden by comparing each point's
+`geoDistance` to the centre of the visible hemisphere.
+
+A panel under the case list accounts for every case that is **not** drawn,
+split into locations that are Unknown and legacy text that was never checked.
+A map that silently omits cases would be worse than no map, so the count is
+always visible.
+
 ## Structured modules and LaTeX output
 
 A module is not a blob of text. Each carries the fields a resume line needs:
@@ -189,6 +314,8 @@ Alongside the chips the board filters on:
 | Company | multi-select | you routinely want several at once |
 | Position | multi-select | the exact title, when you know it |
 | Job type | multi-select | the kind of role, regardless of wording |
+| Employment | multi-select | full-time versus internship versus contract |
+| On-site / remote | multi-select | how the work happens |
 | Location | multi-select | "Toronto or remote" is one question |
 | Requisition ID | single text, substring match | an ID names exactly one posting |
 | Date applied | from/to range, with 7/30/90-day presets | |
@@ -277,3 +404,10 @@ easier than relying on local network access.
   reminder sent from a scheduled server job
 - Consider turning this into a PWA (manifest.json + service worker) for an
   "install to home screen" feel without needing a native app
+- Location lookup matches on place name, so a city commonly known by another
+  name will not be found under the one you typed, and Unknown is the only way
+  past it. A keyed provider (Google Places, Mapbox) handles aliases and
+  partial input far better; the swap is one function in `lib/geocode.js`
+- The map plots cities, not employers. Pinning an actual office address would
+  need a provider that geocodes street addresses, which the current keyless
+  one does not do

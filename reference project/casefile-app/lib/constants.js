@@ -41,6 +41,19 @@ export const JOB_TYPE_SUGGESTIONS = [
   "Research"
 ];
 
+/**
+ * Employment arrangement. A short fixed list, unlike jobType, which is free
+ * text for the kind of work. Values are stored as the label you see, so
+ * filters, chips and cards need no lookup table; Unknown is the default
+ * because a posting does not always say.
+ */
+export const EMPLOYMENT_TYPES = ["Unknown", "Full-time", "Part-time", "Contract", "Internship"];
+
+/** Where the work happens. Also stored as the visible label. */
+export const LOCATION_TYPES = ["Unknown", "On-site", "Hybrid", "Remote"];
+
+export const UNKNOWN_TYPE = "Unknown";
+
 export const MODULE_TYPES = [
   { value: "summary", label: "Summary" },
   { value: "experience", label: "Experience" },
