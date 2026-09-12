@@ -687,6 +687,35 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .rs-section, .rs-entry { break-inside: avoid; }
 }
 
+/* ---------- Email review queue ---------- */
+.review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+.review-count { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
+.review-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.review-item {
+  background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--stage-color, var(--applied));
+  border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.review-source { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-confidence {
+  font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: #FEF6E7; color: #9A6400;
+}
+.review-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+.review-field { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 5px; }
+.review-field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+.review-field input, .review-field select {
+  padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px;
+  font-size: 13px; font-family: inherit; background: var(--surface); color: var(--ink);
+}
+.review-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 640px) {
+  .review-header { flex-direction: column; align-items: stretch; }
+  .review-fields { flex-direction: column; }
+  .review-actions { flex-direction: column-reverse; }
+  .review-actions button { width: 100%; }
+}
+
 /* ---------- Type-ahead text field (company / position / job type) ---------- */
 .suggest-wrap { position: relative; }
 .suggest-wrap input { width: 100%; }
