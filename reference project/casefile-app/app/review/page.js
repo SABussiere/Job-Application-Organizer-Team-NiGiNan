@@ -76,7 +76,7 @@ export default function ReviewPage() {
   if (error) {
     return (
       <div>
-        <p className="hint">Couldn&apos;t load the review queue: {error}</p>
+        <p className="hint">Couldn&apost load the review queue: {error}</p>
         <button className="btn-secondary-inline" onClick={load}>Retry</button>
       </div>
     );
@@ -87,23 +87,6 @@ export default function ReviewPage() {
 
   return (
     <div className="panel">
-<<<<<<< Updated upstream
-      <h2>Review queue</h2>
-      <ul className="reminders-list">
-        {pending.map(p => (
-          <li key={p.id}>
-            <div>
-              <div className="r-pos">{p.extracted.position} @ {p.extracted.company}</div>
-              <div className="r-co">Guessed status: {p.extracted.status}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-primary" onClick={() => confirm(p)}>Confirm</button>
-              <button className="btn-danger" onClick={() => dismiss(p.id)}>Dismiss</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-=======
       <div className="review-header">
         <div>
           <h2>Email review</h2>
@@ -184,7 +167,6 @@ export default function ReviewPage() {
           </ul>
         </>
       )}
->>>>>>> Stashed changes
     </div>
   );
 }
