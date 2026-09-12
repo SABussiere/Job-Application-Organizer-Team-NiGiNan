@@ -157,11 +157,30 @@ a { color: inherit; }
   display: inline-block; margin-top: 8px; font-size: 10.5px;
   background: #FEF2F3; color: var(--rejected); padding: 3px 8px; border-radius: 5px; font-weight: 600;
 }
-.card .quick-move {
-  margin-top: 10px; width: 100%; font-size: 11.5px;
-  padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
-  background: var(--bg); color: var(--ink);
+.card .move-select {
+  position: relative;
+  margin-top: 10px;
 }
+
+.card .move-select span {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.card .move-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .empty-col {
   text-align: center; color: var(--muted); font-size: 12.5px;
   padding: 22px 10px; border: 1px dashed var(--border); border-radius: 10px;
