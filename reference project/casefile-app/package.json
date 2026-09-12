@@ -1,5 +1,5 @@
 {
-  "name": "casefile-web",
+  "name": "casefile-web-minimal",
   "version": "1.0.0",
   "private": true,
   "scripts": {
