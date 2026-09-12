@@ -173,7 +173,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
   const pinScale = isHeat ? 0.7 : 1;
 
   return (
-    <div className="map-stage">
+    <div className={`map-stage ${isGlobe ? "globe" : "flat"}`}>
       <div className="map-controls">
         <button onClick={() => setZoom(z => Math.min(6, z * 1.3))} aria-label="Zoom in">+</button>
         <button onClick={() => setZoom(z => Math.max(0.6, z / 1.3))} aria-label="Zoom out">−</button>

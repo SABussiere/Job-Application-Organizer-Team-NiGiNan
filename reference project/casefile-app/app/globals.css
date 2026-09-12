@@ -794,13 +794,14 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   gap: 18px; margin-top: 16px; align-items: start;
 }
 
-.map-stage { position: relative; }
+.map-stage { position: relative; width: 100%; }
+.map-stage.globe { max-width: 620px; margin: 0 auto; }
 .world-map {
   width: 100%; height: auto; display: block; touch-action: none; cursor: grab;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
 }
 .world-map:active { cursor: grabbing; }
-.world-map.globe { max-width: 620px; margin: 0 auto; }
+.world-map.globe { width: 100%; }
 
 .map-ocean { fill: #EAF1F4; }
 .map-outline { fill: none; stroke: var(--border-strong); stroke-width: 1; }
