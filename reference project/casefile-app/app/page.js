@@ -11,8 +11,6 @@ export default function BoardPage() {
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -36,34 +34,6 @@ export default function BoardPage() {
   async function moveApp(id, stage) {
     await api.updateApplication(id, { status: stage });
     load();
-  }
-
-  async function syncGmail() {
-    setSyncing(true);
-    setSyncMessage("");
-    try {
-      const res = await fetch("/api/email/sync", { method: "POST" });
-      if (res.status === 401) {
-        window.location.href = "/api/auth/google";
-        return;
-      }
-      if (!res.ok) throw new Error(`Sync failed (${res.status})`);
-      const data = await res.json();
-      setSyncMessage(
-        data.queued > 0
-          ? `Scanned ${data.scanned}, queued ${data.queued} for review — check Email Review.`
-          : `Scanned ${data.scanned}, nothing new to review.`
-      );
-    } catch (err) {
-      setSyncMessage(err.message);
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function disconnectGmail() {
-    await fetch("/api/auth/google", { method: "DELETE" });
-    setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
   }
 
   async function createNew() {
@@ -96,13 +66,6 @@ export default function BoardPage() {
 
       <div className="board-toolbar">
         <button className="btn-stamp" onClick={createNew}>+ New application</button>
-        <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Syncing..." : "📥 Sync Gmail"}
-        </button>
-        <button className="btn-secondary-inline" onClick={disconnectGmail}>
-          Disconnect Gmail
-        </button>
-        {syncMessage && <span className="hint" style={{ margin: 0 }}>{syncMessage}</span>}
       </div>
 
       {loading ? (
