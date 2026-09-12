@@ -809,7 +809,10 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .map-country.has-data { stroke: var(--surface); stroke-width: 0.7; }
 
 .map-pin { cursor: pointer; }
-.map-pin-halo { fill: currentColor; opacity: 0; }
+/* Invisible but hit-testable: a painted fill at zero opacity still receives
+   pointer events, which is what makes a small pin clickable. `fill: none`
+   would not, so this must keep a real paint value. */
+.map-pin-hit { fill: #000; opacity: 0; }
 .map-pin-dot { stroke: #fff; stroke-width: 1.6; }
 .map-pin:hover .map-pin-dot { stroke-width: 2.6; }
 .map-pin.selected .map-pin-dot { stroke: var(--ink); stroke-width: 2.6; }

@@ -216,6 +216,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
                 {`${place.geo.city}${place.geo.country ? `, ${place.geo.country}` : ""} — ` +
                   `${count} ${count === 1 ? "case" : "cases"}`}
               </title>
+              <circle className="map-pin-hit" r={Math.max(13, radius + 6)} />
               <circle
                 className="map-pin-dot"
                 r={radius}

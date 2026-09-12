@@ -51,7 +51,7 @@ export default function PlaceCaseList({ place, today, onOpen }) {
               <Row label="Applied">{formatDate(app.dateApplied)}</Row>
               <Row label="Req ID">{app.requisitionId}</Row>
               <Row label="Follow-up">
-                {bucket === "unknown" || bucket === "none"
+                {bucket === "none"
                   ? "none set"
                   : `${followUpLabel(app, today)} (${formatDate(app.followUpDate)})`}
               </Row>
