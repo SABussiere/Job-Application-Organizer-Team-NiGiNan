@@ -1,18 +1,28 @@
-rules_version='2'
+rules_version = '2';
 
+// Each signed-in user owns exactly one subtree, users/{uid}, holding their
+// applications, master resume modules and resume heading. A request is only
+// allowed when the uid in the path is the uid on the request, so one account
+// can never read or write another's data.
+//
+// This file is what actually separates accounts. Nothing in the app code
+// enforces it: lib/api.js builds paths from auth.currentUser.uid, but a
+// signed-in user could ask for any path they like, and only these rules say
+// no.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 10, 12);
+
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // applications/{id}, masterModules/{id}, meta/resumeProfile
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
     }
+
+    // Anything outside a user's own subtree is denied, including to
+    // signed-in users. Add an explicit match block above if shared data
+    // is ever needed.
   }
 }
