@@ -21,7 +21,15 @@ export default function ApplicationCard({ app, onOpen, onDragStart, onMove, toda
       draggable
       onDragStart={e => onDragStart(e, app.id)}
     >
-      <button className="card-open" onClick={() => onOpen(app.id)}>
+      <button
+        className="card-open"
+        onClick={e => {
+          // The whole folder shape (including its tab), not just this
+          // button, is what the modal's opening animation grows from.
+          const rect = e.currentTarget.closest(".card")?.getBoundingClientRect();
+          onOpen(app.id, rect);
+        }}
+      >
         <span className="position">{app.position}</span>
         <span className="company">{app.company}</span>
         {(app.jobType || app.requisitionId || knownType(app.employmentType) ||

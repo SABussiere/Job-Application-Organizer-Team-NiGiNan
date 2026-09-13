@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import {
   COMM_TYPES,
@@ -56,7 +56,7 @@ function reasonFor(row) {
   return "no overlap with this posting";
 }
 
-export default function ApplicationModal({ appId, onClose, onChanged, apps = [] }) {
+export default function ApplicationModal({ appId, onClose, onChanged, apps = [], origin }) {
   const [tab, setTab] = useState("details");
   const [app, setApp] = useState(null);
   const [form, setForm] = useState(null);
@@ -76,6 +76,23 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const [commText, setCommText] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+
+  // Folder-opening / page-flip animation. Handled imperatively via refs
+  // rather than React state driving the transform, because this is the
+  // classic FLIP technique: it needs to read the modal's actual laid-out
+  // position *after* mount, then animate from there, which a plain
+  // declarative style prop can't express without an extra render.
+  const [closing, setClosing] = useState(false);
+  const [flipping, setFlipping] = useState(false);
+  const modalRef = useRef(null);
+  const hasOpenedRef = useRef(false);
+  const reducedMotionRef = useRef(false);
+
+  useEffect(() => {
+    reducedMotionRef.current =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +134,114 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     return () => { cancelled = true; };
   }, [appId]);
 
+  // Runs the first time the modal actually has something to show (data
+  // loads after mount, so the ref isn't attached on the very first pass).
+  // Guarded by hasOpenedRef so a later data refresh (saving, tailoring)
+  // never replays the entrance.
+  useLayoutEffect(() => {
+    if (hasOpenedRef.current) return;
+    const el = modalRef.current;
+    if (!el) return;
+    hasOpenedRef.current = true;
+    if (reducedMotionRef.current) return;
+
+    if (!origin) {
+      // No card to open from (e.g. launched from the map) -- a plain,
+      // gentle entrance rather than matching a specific rectangle.
+      el.style.transform = "scale(0.94)";
+      el.style.opacity = "0";
+      requestAnimationFrame(() => {
+        el.style.transition =
+          "transform 220ms cubic-bezier(0.22,1,0.36,1), opacity 180ms ease-out";
+        el.style.transform = "none";
+        el.style.opacity = "1";
+      });
+      return;
+    }
+
+    // Classic FLIP: place the modal at its natural final position, measure
+    // it, then set an inline transform that makes it *look* like it is
+    // still sitting where the folder card was -- same centre, scaled down
+    // to the card's size, tipped back slightly as if the lid is still
+    // down. Clearing that transform on the next frame, with a transition
+    // active, is what plays as the folder lifting open and growing into
+    // the full case file.
+    const final = el.getBoundingClientRect();
+    const scaleX = origin.width / final.width;
+    const scaleY = origin.height / final.height;
+    const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
+    const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+
+    el.style.transformOrigin = "center";
+    el.style.transform =
+      `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-14deg)`;
+    el.style.opacity = "0.5";
+
+    requestAnimationFrame(() => {
+      el.style.transition =
+        "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out";
+      el.style.transform = "none";
+      el.style.opacity = "1";
+    });
+  }, [app, form, origin]);
+
+  /**
+   * Plays the close animation (the reverse of the open one -- shrinking
+   * back down into the card it came from) and only tells the parent to
+   * actually unmount once it has finished, so the folder visibly closes
+   * instead of just vanishing.
+   */
+  function requestClose() {
+    if (closing) return;
+    setClosing(true);
+    const el = modalRef.current;
+    if (!el || reducedMotionRef.current) { onClose(); return; }
+
+    el.style.transition =
+      "transform 220ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms ease-in";
+    if (origin) {
+      const final = el.getBoundingClientRect();
+      const scaleX = origin.width / final.width;
+      const scaleY = origin.height / final.height;
+      const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
+      const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+      el.style.transform =
+        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-14deg)`;
+    } else {
+      el.style.transform = "scale(0.94)";
+    }
+    el.style.opacity = "0";
+
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener("transitionend", finish);
+      onClose();
+    };
+    el.addEventListener("transitionend", finish);
+    // Safety net: transitionend can fail to fire (e.g. the tab loses
+    // focus mid-transition), and the modal must not get stuck open.
+    setTimeout(finish, 260);
+  }
+
+  /**
+   * Switches tabs with a quick page-flip: the current sheet rotates to
+   * edge-on (invisible, since a flat plane viewed exactly side-on has no
+   * width), the content swaps at that point, then it rotates back to
+   * face-on -- one element, not two layered faces, which is what keeps
+   * this simple and reliable rather than a full 3D card flip.
+   */
+  function switchTab(next) {
+    if (next === tab || flipping) return;
+    if (reducedMotionRef.current) { setTab(next); return; }
+    setFlipping(true);
+    setTimeout(() => {
+      setTab(next);
+      requestAnimationFrame(() => setFlipping(false));
+    }, 150);
+  }
+
   if (!app || !form) return null;
 
   const recentLocations = [];
@@ -150,14 +275,14 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     setDetailsError("");
     await api.updateApplication(appId, form);
     onChanged();
-    onClose();
+    requestClose();
   }
 
   async function deleteCase() {
     if (!confirm("Delete this case? This can't be undone.")) return;
     await api.deleteApplication(appId);
     onChanged();
-    onClose();
+    requestClose();
   }
 
   async function saveResume() {
@@ -249,9 +374,12 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   }
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal">
-        <button type="button" className="modal-close" onClick={onClose}>&times;</button>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
+      <div
+        className={`modal ${closing ? "closing" : ""} ${flipping ? "flipping" : ""}`}
+        ref={modalRef}
+      >
+        <button type="button" className="modal-close" onClick={requestClose}>&times;</button>
 
         <div className="modal-heading-row">
           <h2 className="modal-heading">{app.position || "Untitled position"}</h2>
@@ -261,14 +389,43 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
           </p>
         </div>
 
-        <div className="modal-tabs">
-          <button type="button" className={`modal-tab-btn ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>Details</button>
-          <button type="button" className={`modal-tab-btn ${tab === "resume" ? "active" : ""}`} onClick={() => setTab("resume")}>Tailored Resume</button>
-          <button type="button" className={`modal-tab-btn ${tab === "comms" ? "active" : ""}`} onClick={() => setTab("comms")}>Communications</button>
+        <div className="paper-stack-tabs">
+          {/* Purely decorative: suggests the three sheets below are held
+              together, the way a physical case file would be. */}
+          {/* Feather Icons "paperclip" glyph (MIT licensed) -- a proven
+              shape rather than a hand-derived guess at one. */}
+          <svg
+            className="paperclip"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "details" ? "active" : ""}`}
+            onClick={() => switchTab("details")}
+          >Details</button>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "resume" ? "active" : ""}`}
+            onClick={() => switchTab("resume")}
+          >Tailored Resume</button>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "comms" ? "active" : ""}`}
+            onClick={() => switchTab("comms")}
+          >Communications</button>
         </div>
 
         {tab === "details" && (
-          <div>
+          <div className="paper-sheet-content">
             <div className="mform-row">
               <div className="mfield">
                 <label>Company</label>
@@ -372,7 +529,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         )}
 
         {tab === "resume" && (
-          <div>
+          <div className="paper-sheet-content">
             <div className="tailor-box">
               <label className="tailor-label">Job description</label>
               <textarea
@@ -510,7 +667,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         )}
 
         {tab === "comms" && (
-          <div>
+          <div className="paper-sheet-content">
             <form className="comm-form" onSubmit={logComm}>
               <select value={commType} onChange={e => setCommType(e.target.value)}>
                 {COMM_TYPES.map(t => (

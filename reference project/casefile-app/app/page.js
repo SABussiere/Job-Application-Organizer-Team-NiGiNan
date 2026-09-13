@@ -14,6 +14,10 @@ export default function BoardPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
+  // The clicked card's own on-screen rectangle, so the modal's opening
+  // animation can grow out of that exact folder instead of just fading in
+  // at the centre of the screen.
+  const [openOrigin, setOpenOrigin] = useState(null);
   const [creating, setCreating] = useState(false);
   const [dragOverStage, setDragOverStage] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -131,6 +135,16 @@ export default function BoardPage() {
     load();
   }
 
+  function openCard(id, rect) {
+    setOpenOrigin(rect || null);
+    setOpenId(id);
+  }
+
+  function closeCard() {
+    setOpenId(null);
+    setOpenOrigin(null);
+  }
+
   return (
     <div>
       {!loading && (
@@ -214,7 +228,7 @@ export default function BoardPage() {
                       key={app.id}
                       app={app}
                       today={today}
-                      onOpen={setOpenId}
+                      onOpen={openCard}
                       onMove={moveApp}
                       onDragStart={(e, id) => e.dataTransfer.setData("text/plain", id)}
                     />
@@ -243,7 +257,8 @@ export default function BoardPage() {
         <ApplicationModal
           appId={openId}
           apps={apps}
-          onClose={() => setOpenId(null)}
+          origin={openOrigin}
+          onClose={closeCard}
           onChanged={load}
         />
       )}

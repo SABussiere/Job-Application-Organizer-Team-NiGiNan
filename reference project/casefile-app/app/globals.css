@@ -413,24 +413,84 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(24, 24, 27, 0.4); z-index: 50;
   display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto;
+  /* Depth for the case modal's open/close tilt and the paper flip between
+     tabs -- both use 3D transforms on descendants of .modal. */
+  perspective: 1600px;
 }
 .modal {
   background: var(--surface); border-radius: 16px; width: 100%; max-width: 680px;
   padding: 28px 30px 26px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.14);
   border: 1px solid var(--border);
+  perspective: 1200px;
+  will-change: transform, opacity;
 }
+/* Opening/closing transforms are set inline by ApplicationModal.js (a FLIP
+   animation needs the actual measured rect, which CSS alone can't know),
+   so these classes exist for state/debugging rather than carrying rules
+   of their own. */
+.modal.closing { pointer-events: none; }
 .modal-close {
   position: absolute; top: 16px; right: 18px; background: none; border: none;
   font-size: 20px; color: var(--muted); cursor: pointer; line-height: 1;
 }
 .modal-close:hover { color: var(--ink); }
-.modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
-.modal-tab-btn {
-  background: none; border: none; padding: 10px 4px; margin-right: 20px;
-  font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+
+/* ---------- Paper-stack tabs: three sheets clipped together ---------- */
+.paper-stack-tabs {
+  position: relative;
+  display: flex;
+  padding-top: 16px;
+  margin-bottom: 0;
 }
-.modal-tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+.paperclip {
+  position: absolute; top: -10px; left: 14px; z-index: 5;
+  width: 20px; height: 20px; color: rgba(24, 24, 27, 0.45);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+.paper-tab {
+  position: relative;
+  background: #F6F4EC;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 16px 9px;
+  margin-right: -1px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  font-family: inherit; cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+/* Each unselected tab sits a little lower and a little more tilted than
+   the one before it, like a fanned stack of index cards -- so all three
+   labels stay visible even though only one sheet is on top. */
+.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 2; }
+.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 1; }
+.paper-tab:hover { color: var(--ink); }
+.paper-tab.active {
+  background: #fff; color: var(--ink);
+  transform: translateY(0) rotate(0deg) !important;
+  z-index: 3;
+  box-shadow: 0 -3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* The active sheet itself -- the "paper" the tab bar is clipped to. */
+.paper-sheet-content {
+  background: #fff;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-radius: 0 10px 10px 10px;
+  margin-top: -1px;
+  padding: 22px 22px 20px;
+  position: relative;
+  z-index: 3;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 150ms ease-in, opacity 100ms ease-in;
+}
+/* Toggled briefly by switchTab(): rotate the sheet edge-on (invisible,
+   since a flat plane viewed exactly side-on has zero width) while the
+   content underneath swaps, then rotate back -- a page-flip using one
+   element rather than two stacked faces. */
+.modal.flipping .paper-sheet-content { transform: rotateY(90deg); opacity: 0; }
 
 .mform-row { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
 .mfield { flex: 1; min-width: 140px; }
@@ -721,7 +781,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .comm-form select, .comm-form input, .link-row input { min-height: 42px; }
   .card .move-select span { min-height: 40px; padding: 11px 10px; font-size: 12.5px; }
   .match-order button { width: 32px; height: 26px; font-size: 13px; }
-  .modal-tab-btn { padding: 10px 12px; }
+  .paper-tab { padding: 10px 12px; }
   .btn-stamp, .btn-primary, .btn-danger, .btn-secondary-inline { min-height: 42px; }
 }
 
@@ -735,6 +795,14 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .filter-scroll-btn { display: none; }
   .ms-panel { width: min(320px, calc(100vw - 32px)); }
   .modal-heading-row { margin-right: 36px; }
+  /* Three fanned tab labels can outrun a narrow phone's width (long labels
+     like "Tailored Resume" and "Communications" together run past ~340px);
+     letting the row scroll sideways is a safety net that holds regardless
+     of label length, rather than depending on font/padding math staying
+     just barely small enough. */
+  .paper-stack-tabs { overflow-x: auto; scrollbar-width: none; }
+  .paper-stack-tabs::-webkit-scrollbar { display: none; }
+  .paper-tab { flex-shrink: 0; }
   .latex-actions { flex-direction: column; align-items: stretch; }
   .latex-actions button { width: 100%; }
   .output-tab { flex: 1; text-align: center; }
