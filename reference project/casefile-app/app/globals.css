@@ -268,11 +268,6 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 }
 .btn-secondary-inline:hover { border-color: var(--border-strong); }
 
-@media (max-width: 640px) {
-  .board-toolbar { justify-content: stretch; }
-  .board-toolbar .btn-stamp { width: 100%; padding: 13px; }
-}
-
 /* ---------- Resume modules ---------- */
 .module-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .module-card {
@@ -493,7 +488,13 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 
 @media (max-width: 640px) {
   .board-toolbar { flex-direction: column; align-items: stretch; }
-  .board-toolbar .btn-stamp { width: 100%; }
+  .board-toolbar-main { width: 100%; }
+  .board-actions { width: 100%; justify-content: flex-start; }
+  /* Buttons keep their natural, content-sized width and sit side by side,
+     the same as on desktop -- they only drop to their own line once two of
+     them genuinely don't fit next to each other. */
+  .board-actions .btn-stamp,
+  .board-actions .btn-secondary-inline { flex: 0 0 auto; }
   .filter-row-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
   .filter-chip { flex-shrink: 0; }
   .link-row { flex-wrap: wrap; }
