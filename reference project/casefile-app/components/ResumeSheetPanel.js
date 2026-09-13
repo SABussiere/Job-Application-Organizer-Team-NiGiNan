@@ -3,10 +3,11 @@
 import ResumePreview from "@/components/ResumePreview";
 
 /** Builds the /print URL carrying the exact module order being previewed. */
-export function printUrl(moduleIds, label) {
+export function printUrl(moduleIds, label, appId) {
   const params = new URLSearchParams();
   if (moduleIds && moduleIds.length) params.set("ids", moduleIds.join(","));
   if (label) params.set("label", label);
+  if (appId) params.set("appId", appId);
   const query = params.toString();
   return query ? `/print?${query}` : "/print";
 }
@@ -16,9 +17,9 @@ export function printUrl(moduleIds, label) {
  * action. Printing happens on the bare /print route rather than here, since
  * printing in place misparginates inside the case modal.
  */
-export default function ResumeSheetPanel({ profile, modules, moduleIds, label, loading }) {
+export default function ResumeSheetPanel({ profile, modules, moduleIds, label, appId, loading }) {
   function openPrint() {
-    window.open(printUrl(moduleIds, label), "_blank", "noopener");
+    window.open(printUrl(moduleIds, label, appId), "_blank", "noopener");
   }
 
   return (
