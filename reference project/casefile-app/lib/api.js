@@ -349,17 +349,6 @@ export const api = {
     );
   },
 
-  async tailorResume(data) {
-    const res = await fetch("/api/resume/tailor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || `Request failed: ${res.status}`);
-    return body;
-  },
-
   async getStats() {
     const apps = await api.listApplications();
     const counts = { applied: 0, interview: 0, offer: 0, rejected: 0 };
