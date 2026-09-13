@@ -4,9 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * A text field that suggests values already in use, while still accepting
- * anything typed. Used for company, position, location and job type so the
- * same employer doesn't end up stored three different ways — which matters
+ * anything typed. Used for company, position and job type so the same
+ * employer doesn't end up stored three different ways — which matters
  * because the board's filter options are built from these exact strings.
+ *
+ * The list only opens once there's something typed (or on ArrowDown), not
+ * on bare focus — a freshly opened, empty field shouldn't immediately dump
+ * every value ever entered in front of the cursor.
  *
  * Built rather than using `<datalist>` so the dropdown looks the same in
  * every browser and stays tappable on a phone.
@@ -82,7 +86,6 @@ export default function SuggestInput({
         aria-expanded={showList}
         aria-autocomplete="list"
         onChange={e => { onChange(e.target.value); setOpen(true); setHighlight(-1); }}
-        onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
       {showList && (
