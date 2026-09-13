@@ -153,23 +153,27 @@ export default function BoardPage() {
       )}
 
       <div className="board-toolbar">
-        <BoardFilters
-          apps={apps}
-          filters={filters}
-          onChange={setFilters}
-          today={today}
-          resultCount={visible.length}
-        />
-        <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
-        <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Scanning..." : "Scan Gmail"}
-        </button>
-
-        {gmailConnected && (
-          <button className="btn-secondary-inline" onClick={disconnectGmail}>
-            Disconnect Gmail
+        <div className="board-toolbar-main">
+          <BoardFilters
+            apps={apps}
+            filters={filters}
+            onChange={setFilters}
+            today={today}
+            resultCount={visible.length}
+          />
+        </div>
+        <div className="board-actions">
+          <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
+          <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
+            {syncing ? "Scanning..." : "Scan Gmail"}
           </button>
-        )}
+
+          {gmailConnected && (
+            <button className="btn-secondary-inline" onClick={disconnectGmail}>
+              Disconnect Gmail
+            </button>
+          )}
+        </div>
       </div>
 
       {syncMessage && (

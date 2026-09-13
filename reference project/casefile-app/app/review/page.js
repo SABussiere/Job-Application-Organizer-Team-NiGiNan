@@ -131,7 +131,7 @@ export default function ReviewPage() {
   if (error) {
     return (
       <div>
-        <p className="hint">Couldn&apost load the review queue: {error}</p>
+        <p className="hint">Couldn&apos;t load the review queue: {error}</p>
         <button className="btn-secondary-inline" onClick={load}>Retry</button>
       </div>
     );
