@@ -759,9 +759,8 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 /* A horizontally scrolling strip rather than wrapping to a second line,
    which used to shove the board down whenever a lot of filters were
-   active. The mask fades each edge to hint there's more, and the arrow
-   buttons (hidden once there's nothing further that way) give a mouse a
-   click target since only touch/trackpad can swipe. */
+   active. The arrow buttons (hidden once there's nothing further that way)
+   give a mouse a click target since only touch/trackpad can swipe. */
 .filter-carousel { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .filter-row-main {
   display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
@@ -775,10 +774,22 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   overflow-y: visible;
   scroll-snap-type: x proximity; scroll-padding-inline: 4px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none; min-width: 0;
-  mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 .filter-row-main::-webkit-scrollbar { display: none; }
+/* The edge-fade hint used to be a mask-image on .filter-row-main itself,
+   but a mask (like filter/clip-path) clips the *entire* rendered subtree
+   to the element's box no matter what overflow says -- so it was cutting
+   off the Company/Position/Location dropdown panels the same way the
+   overflow bug above did, just via a different mechanism. Painting the
+   fade as pointer-events:none overlays on the non-scrolling wrapper
+   instead keeps the visual hint without clipping anything inside the row. */
+.filter-carousel::before,
+.filter-carousel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 16px;
+  pointer-events: none; z-index: 1;
+}
+.filter-carousel::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+.filter-carousel::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
 .filter-row-main > * { flex-shrink: 0; scroll-snap-align: start; }
 .filter-scroll-btn {
   flex-shrink: 0; z-index: 2; width: 28px; height: 28px; padding: 0;
