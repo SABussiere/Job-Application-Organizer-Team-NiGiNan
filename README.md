@@ -183,7 +183,9 @@ Both are plain SVG over the same data.
   remote, requisition ID, follow-up status, contact-log count, notes and a
   link to the posting. Editing stays behind an explicit **Open case** button
 - The stage chips filter which cases are plotted at all
-- Drag to rotate the globe or pan the flat map, and zoom with + and −
+- Drag to rotate the globe or pan the flat map, and zoom with + / − or the
+  scroll wheel (a trackpad pinch, which the browser reports as a large
+  wheel delta, zooms further per gesture than a single mouse-wheel notch)
 
 ### Why teal, and why point-in-polygon
 

@@ -74,6 +74,11 @@ const STAGE_RANK = { offer: 4, interview: 3, applied: 2, rejected: 1 };
 // looks at longitude -90, latitude 20: North America.
 const INITIAL_ROTATION = [90, -20];
 
+// Shared by the +/- buttons and the scroll wheel so neither can push the
+// map past what the other allows.
+const MIN_ZOOM = 0.6;
+const MAX_ZOOM = 6;
+
 function dominantStatus(apps) {
   return apps.reduce(
     (best, a) => ((STAGE_RANK[a.status] || 0) > (STAGE_RANK[best] || 0) ? a.status : best),
@@ -207,6 +212,17 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
     dragRef.current = null;
   }
 
+  // Scroll to zoom, scaled by how far the wheel actually moved rather than a
+  // fixed step per event, so one sharp trackpad pinch (a large deltaY) zooms
+  // further in one go than a single slow mouse-wheel notch does.
+  // preventDefault keeps the page behind the map from scrolling while the
+  // cursor is over it.
+  function onWheel(e) {
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    setZoom(z => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)));
+  }
+
   function reset() {
     setRotation(INITIAL_ROTATION);
     setOffset([0, 0]);
@@ -220,8 +236,8 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
   return (
     <div className={`map-stage ${isGlobe ? "globe" : "flat"}`}>
       <div className="map-controls">
-        <button onClick={() => setZoom(z => Math.min(6, z * 1.3))} aria-label="Zoom in">+</button>
-        <button onClick={() => setZoom(z => Math.max(0.6, z / 1.3))} aria-label="Zoom out">−</button>
+        <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.3))} aria-label="Zoom in">+</button>
+        <button onClick={() => setZoom(z => Math.max(MIN_ZOOM, z / 1.3))} aria-label="Zoom out">−</button>
         <button onClick={reset} className="map-reset">Reset</button>
       </div>
 
@@ -238,6 +254,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        onWheel={onWheel}
       >
         {isGlobe && <path className="map-ocean" d={sphere} />}
         <path className="map-graticule" d={graticule} />
