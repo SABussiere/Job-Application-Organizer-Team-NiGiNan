@@ -202,6 +202,29 @@ because the gazetteer and the basemap disagree on names. The gazetteer says
 "United States" and the basemap says "United States of America", so matching
 on names would have silently dropped every US application from the heat map.
 
+### State and province detail
+
+`world-atlas` has no data below the country level, for anywhere. Getting a
+finer grain than "the whole country" means a second dataset, and there is no
+small, reliably-projected file covering every country's states and provinces
+at once — a global one is many megabytes, an order of magnitude past
+everything else this map bundles.
+
+The scope taken instead: add state detail one country at a time, starting
+with the US via `us-atlas` (114KB, official Census Bureau shapes, plain
+longitude/latitude so it composes with the same projections as the rest of
+the map). A pin inside the US resolves to its state; a click, a heat colour,
+and the "cases here" panel all follow. Every other country still resolves at
+the country level, and cities everywhere are already exact points — they
+were never rounded to a country to begin with. Adding another country means
+finding an equally small, unprojected TopoJSON source for it and appending
+it the same way `components/WorldMap.js` already does for the US (the
+`REGIONS` array).
+
+Three `world-atlas` features — Northern Cyprus, Somaliland and Kosovo — ship
+with no id in the 110m file, which collided all three onto the same map key.
+They're given a name-based id as a fallback so each stays distinct.
+
 **Topographic relief is not here, and is not cheap.** Terrain shading needs an
 elevation raster or hillshade tiles, which means a tile provider and a key, or
 bundling a dataset orders of magnitude larger than the 108KB of outlines.

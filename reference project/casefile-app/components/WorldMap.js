@@ -11,12 +11,42 @@ import {
 } from "d3-geo";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-110m.json";
+import usTopo from "us-atlas/states-10m.json";
 import { STAGES, stageMeta } from "@/lib/constants";
 import { HEAT_EMPTY, heatColor, usedBins } from "@/lib/mapScale";
 
 // Country outlines are a bundled TopoJSON file (108KB at 110m resolution),
 // not map tiles: no tile server, no API key, and the map works offline.
-const COUNTRIES = feature(world, world.objects.countries).features;
+//
+// Three disputed territories in this file (Northern Cyprus, Somaliland,
+// Kosovo) ship with no id at all, which would make them collide with each
+// other as a single Map key for heat counts and click selection. Falling
+// back to the feature's own name keeps each one distinct; every other
+// country already has a proper numeric id and is untouched.
+const COUNTRIES = feature(world, world.objects.countries).features.map(f =>
+  f.id == null ? { ...f, id: `unnamed-${f.properties.name}` } : f
+);
+
+// world-atlas has no data below the country level anywhere, so state or
+// province detail only exists where a second, per-country dataset has been
+// added. The US is the one covered so far (us-atlas, 114KB, official Census
+// Bureau shapes) -- everywhere else still resolves to its whole country.
+// Extending this to another country means finding an equally small,
+// unprojected (lon/lat) TopoJSON source for it and appending here the same
+// way.
+const US_COUNTRY_ID = "840";
+const US_STATES = feature(usTopo, usTopo.objects.states).features.map(f => ({
+  ...f,
+  // Prefixed so a state's two-digit FIPS code can never collide with a
+  // world-atlas country id.
+  id: `us-${f.id}`,
+  properties: { name: f.properties.name, country: "United States" }
+}));
+
+// The regions actually drawn and hit-tested: every country except the US,
+// which is replaced by its states so heat shading and clicks resolve at
+// that finer grain there.
+const REGIONS = [...COUNTRIES.filter(f => f.id !== US_COUNTRY_ID), ...US_STATES];
 
 const FLAT = { width: 960, height: 480 };
 const GLOBE = { width: 620, height: 620 };
@@ -51,24 +81,24 @@ export function groupByPlace(apps) {
 }
 
 /**
- * Applications per country, by testing each pin against the country polygons.
- * Point-in-polygon rather than matching country names, because the gazetteer
- * and the basemap name countries differently ("United States" against
- * "United States of America"), and a name mismatch would silently lose a
- * country from the heat map.
+ * Applications per region, by testing each pin against the region polygons
+ * (countries, plus US states in place of the whole US). Point-in-polygon
+ * rather than matching names, because the gazetteer and the basemap name
+ * places differently ("United States" against "United States of America"),
+ * and a name mismatch would silently lose a region from the heat map.
  */
-function countByCountry(places) {
+function countByRegion(places) {
   const counts = new Map();
   places.forEach(place => {
     const point = [place.geo.lon, place.geo.lat];
-    const country = COUNTRIES.find(f => geoContains(f, point));
-    if (!country) return;
-    counts.set(country.id, (counts.get(country.id) || 0) + place.apps.length);
+    const region = REGIONS.find(f => geoContains(f, point));
+    if (!region) return;
+    counts.set(region.id, (counts.get(region.id) || 0) + place.apps.length);
   });
   return counts;
 }
 
-export { COUNTRIES, dominantStatus };
+export { REGIONS, dominantStatus };
 
 export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey }) {
   const isGlobe = mode === "globe";
@@ -82,7 +112,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
   const wasDraggedRef = useRef(false);
 
   const places = useMemo(() => groupByPlace(apps), [apps]);
-  const counts = useMemo(() => (isHeat ? countByCountry(places) : new Map()), [isHeat, places]);
+  const counts = useMemo(() => (isHeat ? countByRegion(places) : new Map()), [isHeat, places]);
   const bins = useMemo(() => usedBins(counts), [counts]);
 
   const projection = useMemo(() => {
@@ -186,7 +216,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
         role="img"
         aria-label={
           isHeat
-            ? `Applications per country across ${counts.size} countries`
+            ? `Applications across ${counts.size} ${counts.size === 1 ? "region" : "regions"} -- countries, and states within the United States`
             : `${places.length} locations with applications`
         }
         onPointerDown={onPointerDown}
@@ -197,28 +227,38 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
         {isGlobe && <path className="map-ocean" d={sphere} />}
         <path className="map-graticule" d={graticule} />
 
-        {COUNTRIES.map(f => {
+        {REGIONS.map(f => {
+          const isState = f.id.startsWith("us-");
+          const regionLabel = isState
+            ? `${f.properties.name}, ${f.properties.country}`
+            : f.properties.name;
           const count = counts.get(f.id) || 0;
-          const isSelected = selectedKey === `country:${f.id}`;
-          const countryPlaces = places.filter(place => geoContains(f, [place.geo.lon, place.geo.lat]));
-          const hasPlaces = countryPlaces.length > 0;
+          const isSelected = selectedKey === `region:${f.id}`;
+          const regionPlaces = places.filter(place => geoContains(f, [place.geo.lon, place.geo.lat]));
+          const hasPlaces = regionPlaces.length > 0;
           return (
             <path
               key={f.id}
-              className={`map-country ${isHeat && count ? "has-data" : ""} ${hasPlaces ? "has-places" : ""} ${isSelected ? "selected" : ""}`}
+              className={
+                `map-country ${isState ? "is-subdivision" : ""} ` +
+                `${isHeat && count ? "has-data" : ""} ${hasPlaces ? "has-places" : ""} ${isSelected ? "selected" : ""}`
+              }
               d={path(f)}
               style={isHeat ? { fill: heatColor(count) } : undefined}
               onClick={e => {
                 if (wasDraggedRef.current) return;
-                if (countryPlaces.length > 0) {
+                if (regionPlaces.length > 0) {
                   e.stopPropagation();
-                  if (countryPlaces.length === 1) {
-                    onSelectPlace(countryPlaces[0]);
+                  if (regionPlaces.length === 1) {
+                    onSelectPlace(regionPlaces[0]);
                   } else {
-                    const allApps = countryPlaces.flatMap(p => p.apps);
+                    const allApps = regionPlaces.flatMap(p => p.apps);
                     onSelectPlace({
-                      key: `country:${f.id}`,
-                      geo: { city: f.properties.name, country: "" },
+                      key: `region:${f.id}`,
+                      geo: {
+                        city: f.properties.name,
+                        country: isState ? f.properties.country : ""
+                      },
                       apps: allApps,
                       status: dominantStatus(allApps)
                     });
@@ -228,8 +268,8 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
             >
               <title>
                 {count > 0
-                  ? `${f.properties.name}: ${count} ${count === 1 ? "application" : "applications"}`
-                  : f.properties.name}
+                  ? `${regionLabel}: ${count} ${count === 1 ? "application" : "applications"}`
+                  : regionLabel}
               </title>
             </path>
           );
@@ -302,8 +342,9 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
             </span>
           </span>
           <span className="map-legend-note">
-            Shading counts applications per country. Pins keep their stage
-            colour, so you can still select a city.
+            Shading counts applications per country, and per state within
+            the United States. Pins keep their stage colour, so you can
+            still select a city.
           </span>
         </div>
       ) : (

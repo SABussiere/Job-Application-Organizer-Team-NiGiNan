@@ -7,7 +7,7 @@ import { locationStatus } from "@/lib/geocode";
 import { todayStr } from "@/lib/followups";
 import ApplicationModal from "@/components/ApplicationModal";
 import { geoContains } from "d3-geo";
-import WorldMap, { COUNTRIES, dominantStatus, groupByPlace } from "@/components/WorldMap";
+import WorldMap, { REGIONS, dominantStatus, groupByPlace } from "@/components/WorldMap";
 import PlaceCaseList from "@/components/PlaceCaseList";
 
 export default function MapPage() {
@@ -62,18 +62,19 @@ export default function MapPage() {
     if (!selected) return null;
     const pinMatch = plotted.find(p => p.key === selected);
     if (pinMatch) return pinMatch;
-    if (selected.startsWith("country:")) {
-      const countryId = selected.slice(8);
-      const countryFeature = COUNTRIES.find(c => String(c.id) === String(countryId));
-      if (!countryFeature) return null;
-      const countryPlaces = plotted.filter(p => geoContains(countryFeature, [p.geo.lon, p.geo.lat]));
-      if (countryPlaces.length === 0) return null;
-      const allApps = countryPlaces.flatMap(p => p.apps);
+    if (selected.startsWith("region:")) {
+      const regionId = selected.slice(7);
+      const regionFeature = REGIONS.find(f => String(f.id) === String(regionId));
+      if (!regionFeature) return null;
+      const regionPlaces = plotted.filter(p => geoContains(regionFeature, [p.geo.lon, p.geo.lat]));
+      if (regionPlaces.length === 0) return null;
+      const isState = regionFeature.id.startsWith("us-");
+      const allApps = regionPlaces.flatMap(p => p.apps);
       return {
         key: selected,
         geo: {
-          city: countryFeature.properties.name,
-          country: ""
+          city: regionFeature.properties.name,
+          country: isState ? regionFeature.properties.country : ""
         },
         apps: allApps,
         status: dominantStatus(allApps)

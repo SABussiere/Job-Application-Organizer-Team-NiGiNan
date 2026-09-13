@@ -898,6 +898,12 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .map-country.has-places { cursor: pointer; }
 .map-country.has-places:hover { stroke: var(--ink); stroke-width: 1; }
 .map-country.selected { stroke: var(--ink); stroke-width: 1.5; }
+/* State/province borders read as a finer texture than country borders, so
+   the map doesn't look the same at both scales; interaction states (hover,
+   selected) stay as visible as a country's so a click target is never hard
+   to see. */
+.map-country.is-subdivision { stroke-width: 0.25; }
+.map-country.is-subdivision.has-data { stroke-width: 0.45; }
 
 .map-pin { cursor: pointer; }
 /* Invisible but hit-testable: a painted fill at zero opacity still receives
