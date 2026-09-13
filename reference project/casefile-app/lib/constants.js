@@ -4,7 +4,7 @@ export const STAGE_META = {
   applied: { label: "Applied", color: "#3B82F6" },
   interview: { label: "Interview", color: "#10B981" },
   offer: { label: "Offer", color: "#F59E0B" },
-  rejected: { label: "Rejected", color: "#F43F5E" }
+  rejected: { label: "Rejected", color: "#DC2626" }
 };
 
 // Fallback so an unrecognised status can never crash a card render.

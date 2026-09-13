@@ -278,7 +278,7 @@ export default function ResumePage() {
   }
 
   return (
-    <div className="panel" style={{ maxWidth: 900 }}>
+    <div className="panel resume-panel" style={{ maxWidth: 900 }}>
       <h2>Master Resume</h2>
       <p className="hint hint-wide">
         Break your resume into modules — a summary, each job, each project, your

@@ -127,7 +127,7 @@ export default function BoardPage() {
   async function disconnectGmail() {
     await fetch("/api/auth/google", { method: "DELETE" });
     setGmailConnected(false);
-    setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
+    setSyncMessage("Gmail disconnected — Scan Gmail will prompt you to connect a new account.");
   }
 
   function handleCreated() {
