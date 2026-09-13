@@ -28,6 +28,7 @@ export default function ReviewPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [openStageId, setOpenStageId] = useState(null);
 
   function load() {
     setLoading(true);
@@ -58,11 +59,12 @@ export default function ReviewPage() {
       }
       if (!res.ok) throw new Error(`Sync failed (${res.status})`);
       const data = await res.json();
-      setSyncMessage(
+      const message =
         data.queued > 0
           ? `Scanned ${data.scanned}, queued ${data.queued} new.`
-          : `Scanned ${data.scanned}, nothing new.`
-      );
+          : `Scanned ${data.scanned}, nothing new to review.`;
+      setSyncMessage(message);
+      setTimeout(() => setSyncMessage(""), 4000);
       load();
     } catch (err) {
       setSyncMessage(err.message);
@@ -138,32 +140,36 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="panel">
+    <div className="panel review-panel">
       <div className="review-header">
         <div>
-          <h2>Email review</h2>
+          <h2>Email Review</h2>
           <p className="hint" style={{ margin: 0 }}>
-            Guesses from your synced inbox — check the fields, then confirm or dismiss.
+            Scans from your synced inbox, make sure to check the fields, then confirm, edit, or dismiss.
           </p>
         </div>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
           {syncing ? "Syncing..." : "Scan Gmail"}
         </button>
       </div>
-      {syncMessage && <p className="hint">{syncMessage}</p>}
+      {syncMessage && <div className="sync-toast" role="status" aria-live="polite">{syncMessage}</div>}
 
       {pending.length === 0 ? (
         <p className="hint">Nothing to review right now.</p>
       ) : (
-        <>
-          <p className="review-count">{pending.length} to review</p>
+        <section className="review-group" aria-labelledby="review-count">
+          <p className="review-count" id="review-count">{pending.length} to review</p>
           <ul className="review-list">
             {pending.map(p => {
               const fields = edits[p.id] || p.extracted;
               const meta = stageMeta(fields.status);
               const lowConfidence = p.extracted.confidence < 0.5;
               return (
-                <li key={p.id} className="review-item" style={{ "--stage-color": meta.color }}>
+                <li
+                  key={p.id}
+                  className={`review-item ${openStageId === p.id ? "stage-menu-open" : ""}`}
+                  style={{ "--stage-color": meta.color }}
+                >
                   <div className="review-source">
                     From an email received {formatDate(p.receivedAt)}
                     {lowConfidence && <span className="review-confidence low">Low confidence — double-check</span>}
@@ -184,16 +190,44 @@ export default function ReviewPage() {
                         onChange={e => setField(p.id, "position", e.target.value)}
                       />
                     </div>
-                    <div className="review-field" style={{ maxWidth: 160 }}>
+                    <div className="review-field review-stage-field" style={{ maxWidth: 160 }}>
                       <label>Stage</label>
-                      <select
-                        value={fields.status}
-                        onChange={e => setField(p.id, "status", e.target.value)}
-                      >
-                        {STAGES.map(stage => (
-                          <option key={stage} value={stage}>{stageMeta(stage).label}</option>
-                        ))}
-                      </select>
+                      <div className="review-stage-select">
+                        <button
+                          type="button"
+                          className="review-stage-trigger"
+                          aria-haspopup="listbox"
+                          aria-expanded={openStageId === p.id}
+                          onClick={() => setOpenStageId(openStageId === p.id ? null : p.id)}
+                        >
+                          <span className="review-stage-dot" style={{ background: meta.color }} />
+                          {meta.label}
+                          <span className="review-stage-chevron" aria-hidden="true">▾</span>
+                        </button>
+                        {openStageId === p.id && (
+                          <div className="review-stage-menu" role="listbox" aria-label="Application stage">
+                            {STAGES.map(stage => {
+                              const optionMeta = stageMeta(stage);
+                              return (
+                                <button
+                                  type="button"
+                                  key={stage}
+                                  className={`review-stage-option ${fields.status === stage ? "selected" : ""}`}
+                                  role="option"
+                                  aria-selected={fields.status === stage}
+                                  onClick={() => {
+                                    setField(p.id, "status", stage);
+                                    setOpenStageId(null);
+                                  }}
+                                >
+                                  <span className="review-stage-dot" style={{ background: optionMeta.color }} />
+                                  {optionMeta.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -217,7 +251,7 @@ export default function ReviewPage() {
               );
             })}
           </ul>
-        </>
+        </section>
       )}
     </div>
   );
