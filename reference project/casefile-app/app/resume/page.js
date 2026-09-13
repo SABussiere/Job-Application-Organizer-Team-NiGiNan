@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { MODULE_TYPES, SECTION_TITLES, typeFields } from "@/lib/constants";
 import LatexPanel from "@/components/LatexPanel";
@@ -211,27 +211,32 @@ export default function ResumePage() {
   const [latex, setLatex] = useState("");
   const [profile, setProfile] = useState(null);
   const [rendering, setRendering] = useState(false);
+  const loadingModulesRef = useRef(false);
 
   async function load() {
+    if (loadingModulesRef.current) return;
+    loadingModulesRef.current = true;
     setLoading(true);
 
-    const data = await api.listResumeModules();
+    try {
+      const data = await api.listResumeModules();
 
-    if (data.length === 0) {
-      const createdModules = [];
+      if (data.length === 0) {
+        const createdModules = [];
 
-      for (const module of previewModules) {
-        const created = await api.createResumeModule(module);
-        createdModules.push(created);
+        for (const module of previewModules) {
+          const created = await api.createResumeModule(module);
+          createdModules.push(created);
+        }
+
+        setModules(createdModules);
+      } else {
+        setModules(data);
       }
-    
-      setModules(createdModules);
+    } finally {
+      loadingModulesRef.current = false;
+      setLoading(false);
     }
-    else {
-      setModules(data);
-    }
-
-    setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
