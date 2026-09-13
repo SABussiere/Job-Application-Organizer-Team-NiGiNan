@@ -592,6 +592,16 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 }
 .modal-actions { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; flex-wrap: wrap; }
 
+.prep-q-list {
+  list-style: decimal; margin: 18px 0 0; padding-left: 22px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.prep-q-list li {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 11px 14px; font-size: 13.5px; line-height: 1.5;
+}
+.prep-q-list li::marker { color: var(--accent); font-weight: 600; }
+
 .comm-form { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .comm-form select, .comm-form input[type="date"] { padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
 .comm-form input[type="text"] { flex: 1; min-width: 160px; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
