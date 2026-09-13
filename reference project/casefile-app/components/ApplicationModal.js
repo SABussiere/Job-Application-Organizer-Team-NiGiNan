@@ -71,6 +71,8 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const [latexError, setLatexError] = useState("");
   const [tailoring, setTailoring] = useState(false);
   const [tailorError, setTailorError] = useState("");
+  const [prepLoading, setPrepLoading] = useState(false);
+  const [prepError, setPrepError] = useState("");
   const [commType, setCommType] = useState("note");
   const [commDate, setCommDate] = useState(new Date().toISOString().slice(0, 10));
   const [commText, setCommText] = useState("");
@@ -236,6 +238,24 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     }
   }
 
+  async function generatePrep() {
+    setPrepLoading(true);
+    setPrepError("");
+    try {
+      const updated = await api.generateInterviewQuestions(appId, {
+        company: app.company,
+        position: app.position,
+        jobType: app.jobType,
+        jobDescription
+      });
+      setApp(updated);
+    } catch (e) {
+      setPrepError(e.message);
+    } finally {
+      setPrepLoading(false);
+    }
+  }
+
   async function logComm(e) {
     e.preventDefault();
     if (!commText.trim()) return;
@@ -264,6 +284,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         <div className="modal-tabs">
           <button type="button" className={`modal-tab-btn ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>Details</button>
           <button type="button" className={`modal-tab-btn ${tab === "resume" ? "active" : ""}`} onClick={() => setTab("resume")}>Tailored Resume</button>
+          <button type="button" className={`modal-tab-btn ${tab === "prep" ? "active" : ""}`} onClick={() => setTab("prep")}>Interview Prep</button>
           <button type="button" className={`modal-tab-btn ${tab === "comms" ? "active" : ""}`} onClick={() => setTab("comms")}>Communications</button>
         </div>
 
@@ -506,6 +527,54 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
                 {savedFlash ? "Saved ✓" : "Save tailored resume"}
               </button>
             </div>
+          </div>
+        )}
+
+        {tab === "prep" && (
+          <div>
+            <div className="tailor-box">
+              <p className="hint" style={{ margin: 0 }}>
+                Generates {(app.interviewQuestions || []).length ? "a fresh set of" : "3–4"} interview
+                questions {app.company ? `${app.company} ` : "this employer "}
+                might ask for {app.position || "this role"}
+                {jobDescription.trim()
+                  ? ", grounded in the job posting on the Tailored Resume tab"
+                  : " — paste the job posting on the Tailored Resume tab first for sharper, more specific questions"}.
+                Treat these as a prep starting point, not a guarantee of what
+                actually comes up.
+              </p>
+              <div className="tailor-actions">
+                <button type="button" className="btn-primary" onClick={generatePrep} disabled={prepLoading}>
+                  {prepLoading
+                    ? "Thinking..."
+                    : (app.interviewQuestions || []).length
+                      ? "Regenerate questions"
+                      : "Generate questions"}
+                </button>
+                {prepError && <span className="tailor-error">{prepError}</span>}
+              </div>
+            </div>
+
+            {(app.interviewQuestions || []).length > 0 ? (
+              <>
+                <ol className="prep-q-list">
+                  {app.interviewQuestions.map((q, i) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ol>
+                {app.interviewQuestionsGeneratedAt && (
+                  <p className="hint" style={{ margin: "12px 0 0" }}>
+                    Generated {formatDate(app.interviewQuestionsGeneratedAt.slice(0, 10))}
+                  </p>
+                )}
+              </>
+            ) : (
+              !prepLoading && (
+                <p className="hint" style={{ marginTop: 16 }}>
+                  No questions generated yet.
+                </p>
+              )
+            )}
           </div>
         )}
 
