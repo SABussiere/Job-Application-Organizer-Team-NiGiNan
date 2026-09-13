@@ -100,6 +100,10 @@ a { color: inherit; }
 .tab-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 17px; height: 17px; line-height: 1;
+  /* Sizes the one nav entry still using an emoji glyph (Calendar has no
+     matching SVG yet) close to the 17px footprint the icon files render at,
+     so it doesn't look tiny next to them. */
+  font-size: 15px;
 }
 .tab-icon img {
   display: block;
@@ -280,7 +284,10 @@ a { color: inherit; }
 .card .position { display: block; font-weight: 600; font-size: 14px; }
 .card .company { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-.card .job-type-tag {
+/* Not scoped to .card: PlaceCaseList (the map's and calendar's case detail
+   list) uses this same class outside any .card, and needs the identical
+   pill styling rather than falling back to bare text. */
+.job-type-tag {
   font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
   background: var(--accent-soft); color: var(--accent);
 }
@@ -348,6 +355,12 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
 }
 .btn-danger:hover { background: #FEF2F3; }
+.module-actions .btn-danger {
+  background: var(--rejected);
+  color: #fff;
+  border: none;
+}
+.module-actions .btn-danger:hover { background: #B91C1C; }
 .btn-secondary-inline {
   background: var(--surface); border: 1px solid var(--border); color: var(--ink);
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -469,7 +482,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   margin-bottom: 0;
 }
 .paperclip {
-  position: absolute; top: 4px; left: 12px; z-index: 5;
+  position: absolute; top: 0; left: 12px; z-index: 5;
   width: 18px; height: 18px; color: rgba(24, 24, 27, 0.45);
   transform: rotate(-10deg);
   pointer-events: none;
@@ -487,15 +500,21 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 /* Each unselected tab sits a little lower and a little more tilted than
-   the one before it, like a fanned stack of index cards -- so all three
-   labels stay visible even though only one sheet is on top. */
-.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 2; }
-.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 1; }
+   the one before it, like a fanned stack of index cards -- so every label
+   stays visible even though only one sheet is on top. Written to cover more
+   than three tabs (a fourth, Interview Prep, was added since this was
+   first built) rather than hardcoding exactly three. */
+.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 3; }
+.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 2; }
+.paper-tab:nth-of-type(4) { transform: translateY(12px) rotate(1.8deg); z-index: 1; }
 .paper-tab:hover { color: var(--ink); }
 .paper-tab.active {
   background: #fff; color: var(--ink);
   transform: translateY(0) rotate(0deg) !important;
-  z-index: 3;
+  /* Higher than any fanned tab's own z-index (they go up to 3 for a
+     four-tab stack), not equal to the highest one -- ties would fall back
+     to DOM order, which happens to still work today but only by luck. */
+  z-index: 10;
   box-shadow: 0 -3px 8px rgba(15, 23, 42, 0.05);
 }
 
@@ -730,7 +749,11 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
      them genuinely don't fit next to each other. */
   .board-actions .btn-stamp,
   .board-actions .btn-secondary-inline { flex: 0 0 auto; }
-  .filter-row-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  /* overflow-y: visible for the same reason as .filter-row-main above: these
+     are plain buttons today with nothing that overflows vertically, but
+     leaving overflow-y to silently upgrade to auto is exactly the mistake
+     that broke two other things already. */
+  .filter-row-chips { overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 4px; }
   .filter-chip { flex-shrink: 0; }
   .link-row { flex-wrap: wrap; }
   .link-row input { flex-basis: 100%; }
@@ -742,18 +765,37 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 /* A horizontally scrolling strip rather than wrapping to a second line,
    which used to shove the board down whenever a lot of filters were
-   active. The mask fades each edge to hint there's more, and the arrow
-   buttons (hidden once there's nothing further that way) give a mouse a
-   click target since only touch/trackpad can swipe. */
+   active. The arrow buttons (hidden once there's nothing further that way)
+   give a mouse a click target since only touch/trackpad can swipe. */
 .filter-carousel { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .filter-row-main {
   display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
-  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 4px;
+  overflow-x: auto;
+  /* Explicit, not the default: setting only overflow-x silently upgrades
+     overflow-y from visible to auto too (the CSS overflow spec's "visible
+     paired with non-visible" rule -- the same thing that clipped the
+     paperclip once already), which clips the Company/Position/Location
+     dropdown panels open below this row, since they're taller than the row
+     itself and would otherwise get cut down to nothing. */
+  overflow-y: visible;
+  scroll-snap-type: x proximity; scroll-padding-inline: 4px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none; min-width: 0;
-  mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 .filter-row-main::-webkit-scrollbar { display: none; }
+/* The edge-fade hint used to be a mask-image on .filter-row-main itself,
+   but a mask (like filter/clip-path) clips the *entire* rendered subtree
+   to the element's box no matter what overflow says -- so it was cutting
+   off the Company/Position/Location dropdown panels the same way the
+   overflow bug above did, just via a different mechanism. Painting the
+   fade as pointer-events:none overlays on the non-scrolling wrapper
+   instead keeps the visual hint without clipping anything inside the row. */
+.filter-carousel::before,
+.filter-carousel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 16px;
+  pointer-events: none; z-index: 1;
+}
+.filter-carousel::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+.filter-carousel::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
 .filter-row-main > * { flex-shrink: 0; scroll-snap-align: start; }
 .filter-scroll-btn {
   flex-shrink: 0; z-index: 2; width: 28px; height: 28px; padding: 0;
@@ -828,7 +870,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 .filter-row-chips {
   display: flex; align-items: center; gap: 6px;
-  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
   -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
 .filter-chip { flex-shrink: 0; }
@@ -858,7 +900,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 .filter-summary {
   display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
   -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   font-size: 12.5px; color: var(--muted);
 }
@@ -1177,8 +1219,9 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 }
 .loc-unknown:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Neutral tag for the fixed-vocabulary fields on a card. */
-.card .plain-tag {
+/* Neutral tag for the fixed-vocabulary fields (employment / on-site-remote).
+   Not scoped to .card for the same reason as .job-type-tag above. */
+.plain-tag {
   font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
   background: var(--bg); border: 1px solid var(--border); color: var(--muted);
 }
@@ -1294,6 +1337,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   text-transform: uppercase; letter-spacing: 0.04em; padding-top: 1px;
 }
 .pc-value { flex: 1; min-width: 0; color: var(--ink); word-break: break-word; }
+.pc-value-empty { color: var(--muted); font-style: italic; }
 .pc-notes {
   margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--border);
   font-size: 12px; color: var(--muted); line-height: 1.5;
@@ -1358,6 +1402,98 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .map-switches { flex-direction: column; gap: 8px; }
   .pc-list { max-height: none; }
   .pc-label { flex-basis: 70px; }
+}
+
+/* ---------- Calendar tab ---------- */
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-month-label {
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+  min-width: 132px; text-align: center;
+}
+.cal-panel { padding: 18px; }
+
+/* Month/year picker trigger + popover -- picking the year first, then the
+   month, rather than only stepping one month at a time. */
+.cal-picker-wrap { position: relative; }
+.cal-month-trigger {
+  font-family: inherit; background: none; border: 1px solid transparent;
+  border-radius: 7px; padding: 6px 8px; cursor: pointer;
+}
+.cal-month-trigger:hover { border-color: var(--border); }
+.cal-month-trigger.open { border-color: var(--accent); color: var(--accent); }
+
+.cal-picker-panel {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%);
+  width: 260px; max-width: 80vw; padding: 10px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+}
+.cal-picker-head {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 8px;
+}
+.cal-picker-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.cal-picker-cell {
+  padding: 8px 4px; font-size: 12.5px; font-family: inherit;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--ink); cursor: pointer; text-align: center;
+}
+.cal-picker-cell:hover { border-color: var(--border-strong); }
+.cal-picker-cell.current { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 4px; margin-bottom: 6px;
+}
+.cal-weekdays span {
+  text-align: center; font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(60px, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 6px 6px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); font: inherit; color: inherit;
+  cursor: pointer; text-align: left; min-height: 58px;
+}
+.cal-day:hover { border-color: var(--border-strong); }
+.cal-day.outside { opacity: 0.4; }
+.cal-day.today { border-color: var(--accent); }
+.cal-day.today .cal-day-num { color: var(--accent); font-weight: 700; }
+.cal-day.selected { background: var(--accent-soft); border-color: var(--accent); }
+.cal-day-num { font-size: 12.5px; }
+
+.cal-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; }
+.cal-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.cal-dot-more { font-size: 9.5px; color: var(--muted); font-weight: 600; }
+
+.cal-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--muted);
+}
+.cal-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The follow-up filter chip shows all three urgency colours stacked
+   tightly, rather than a single dot that would only ever match some of
+   what it's filtering. */
+.cal-kind-swatch-multi { display: inline-flex; gap: 1px; }
+.cal-kind-swatch-multi .map-legend-dot { width: 6px; height: 6px; }
+
+@media (max-width: 640px) {
+  .cal-nav { flex-wrap: wrap; justify-content: center; }
+  .cal-nav button { min-height: 40px; }
+  .cal-grid { grid-auto-rows: minmax(46px, 1fr); gap: 3px; }
+  .cal-day { padding: 4px; min-height: 42px; }
+  .cal-day-num { font-size: 11px; }
+  .cal-weekdays span { font-size: 10px; }
 }
 
 /* ---------- Auth splash screen ---------- */
