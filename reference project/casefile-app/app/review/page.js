@@ -28,6 +28,7 @@ export default function ReviewPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [openStageId, setOpenStageId] = useState(null);
 
   function load() {
     setLoading(true);
@@ -156,15 +157,19 @@ export default function ReviewPage() {
       {pending.length === 0 ? (
         <p className="hint">Nothing to review right now.</p>
       ) : (
-        <>
-          <p className="review-count">{pending.length} to review</p>
+        <section className="review-group" aria-labelledby="review-count">
+          <p className="review-count" id="review-count">{pending.length} to review</p>
           <ul className="review-list">
             {pending.map(p => {
               const fields = edits[p.id] || p.extracted;
               const meta = stageMeta(fields.status);
               const lowConfidence = p.extracted.confidence < 0.5;
               return (
-                <li key={p.id} className="review-item" style={{ "--stage-color": meta.color }}>
+                <li
+                  key={p.id}
+                  className={`review-item ${openStageId === p.id ? "stage-menu-open" : ""}`}
+                  style={{ "--stage-color": meta.color }}
+                >
                   <div className="review-source">
                     From an email received {formatDate(p.receivedAt)}
                     {lowConfidence && <span className="review-confidence low">Low confidence — double-check</span>}
@@ -185,16 +190,44 @@ export default function ReviewPage() {
                         onChange={e => setField(p.id, "position", e.target.value)}
                       />
                     </div>
-                    <div className="review-field" style={{ maxWidth: 160 }}>
+                    <div className="review-field review-stage-field" style={{ maxWidth: 160 }}>
                       <label>Stage</label>
-                      <select
-                        value={fields.status}
-                        onChange={e => setField(p.id, "status", e.target.value)}
-                      >
-                        {STAGES.map(stage => (
-                          <option key={stage} value={stage}>{stageMeta(stage).label}</option>
-                        ))}
-                      </select>
+                      <div className="review-stage-select">
+                        <button
+                          type="button"
+                          className="review-stage-trigger"
+                          aria-haspopup="listbox"
+                          aria-expanded={openStageId === p.id}
+                          onClick={() => setOpenStageId(openStageId === p.id ? null : p.id)}
+                        >
+                          <span className="review-stage-dot" style={{ background: meta.color }} />
+                          {meta.label}
+                          <span className="review-stage-chevron" aria-hidden="true">▾</span>
+                        </button>
+                        {openStageId === p.id && (
+                          <div className="review-stage-menu" role="listbox" aria-label="Application stage">
+                            {STAGES.map(stage => {
+                              const optionMeta = stageMeta(stage);
+                              return (
+                                <button
+                                  type="button"
+                                  key={stage}
+                                  className={`review-stage-option ${fields.status === stage ? "selected" : ""}`}
+                                  role="option"
+                                  aria-selected={fields.status === stage}
+                                  onClick={() => {
+                                    setField(p.id, "status", stage);
+                                    setOpenStageId(null);
+                                  }}
+                                >
+                                  <span className="review-stage-dot" style={{ background: optionMeta.color }} />
+                                  {optionMeta.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -218,7 +251,7 @@ export default function ReviewPage() {
               );
             })}
           </ul>
-        </>
+        </section>
       )}
     </div>
   );
