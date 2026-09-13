@@ -799,7 +799,10 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .rs-section, .rs-entry { break-inside: avoid; }
 }
 
+.resume-panel { width: 100%; margin: 0 auto; }
+
 /* ---------- Email review queue ---------- */
+.review-panel { width: 100%; margin: 0 auto; }
 .review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
 .review-group {
   margin-top: 18px;
@@ -882,7 +885,8 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   border: none; border-radius: 5px; background: transparent; color: var(--ink);
   font: inherit; font-size: 13px; text-align: left; cursor: pointer;
 }
-.review-stage-option:hover, .review-stage-option.selected { background: var(--bg); }
+.review-stage-option:hover { background: var(--bg); }
+.review-stage-option.selected { background: var(--accent-soft); color: var(--accent); }
 .review-actions { position: relative; z-index: 1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .review-actions .btn-danger {
   background: var(--rejected);

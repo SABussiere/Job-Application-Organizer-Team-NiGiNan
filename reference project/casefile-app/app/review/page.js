@@ -140,7 +140,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="panel">
+    <div className="panel review-panel">
       <div className="review-header">
         <div>
           <h2>Email Review</h2>
