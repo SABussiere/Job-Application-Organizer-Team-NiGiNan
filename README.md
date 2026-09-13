@@ -269,25 +269,54 @@ always visible.
 
 ## Calendar tab
 
-A plain month grid of every date applied and every follow-up due, one dot per
-event on the day it falls on: red for a follow-up past due, amber for one due
-within a week, blue for one further out, teal for a day something was applied
-to. Clicking a day lists its cases beside the grid (the same read-only detail
-list the map uses) and opens straight into the case from there.
+A plain month grid of every date applied, interview logged, and follow-up
+due, one dot per event on the day it falls on: red for a follow-up past due,
+amber for one due within a week, blue for one further out (the same colours
+the board's follow-up chips already use), teal for a day something was
+applied to, green for a day an interview was logged. Clicking a day lists its
+cases beside the grid (the same read-only detail list the map uses) and opens
+straight into the case from there.
 
-Deliberately minimal — no per-stage filtering, no drag-to-reschedule, no year
-view. The board and the map already answer "what needs attention"; this tab
-only answers "what happened, and what's due, on this particular day," so it
-stays a plain calendar rather than growing into a second board.
+Three filter chips — Applied, Interview, Follow-up — toggle which of those
+event kinds are plotted at all, each with a count of how many cases carry
+that kind (a case can carry more than one, and the count doesn't change
+depending on whether that chip happens to be switched on). The Follow-up
+chip shows all three urgency colours rather than one, since a single colour
+would only ever match some of what it filters.
 
-A rejected case's follow-up date is left off the grid, matching
-`followUpBucket`'s own rule elsewhere in the app that there's nothing left to
-chase once a case is rejected — its applied-on date still shows, since that
-already happened. The grid itself and the day-grouping are pure functions in
-`lib/calendar.js`, unit-tested against a real calendar month (leap years,
-month-end wraparounds, a case applied to and followed up on the same day)
-rather than trusted by inspection, since a calendar is exactly the kind of
-code where an off-by-one is easy to miss by eye.
+Deliberately minimal beyond that — no per-stage filtering, no
+drag-to-reschedule, no year view. The board and the map already answer "what
+needs attention"; this tab only answers "what happened, and what's due, on
+this particular day," so it stays a plain calendar rather than growing into
+a second board.
+
+An interview date comes from a case's own communications log — any entry
+logged with type Interview — rather than a separate field, since that data
+already exists and a case can have logged more than one. A rejected case's
+follow-up date is left off the grid, matching `followUpBucket`'s own rule
+elsewhere in the app that there's nothing left to chase once a case is
+rejected; its applied and interview days still show, since those already
+happened regardless of how the case ended. The grid and the day-grouping are
+pure functions in `lib/calendar.js`, unit-tested against a real calendar
+month (leap years, month-end wraparounds, a case applied to and interviewed
+the same day, a filter that empties a day out entirely) rather than trusted
+by inspection, since a calendar is exactly the kind of code where an
+off-by-one is easy to miss by eye.
+
+### Two card display fixes found along the way
+
+The job-type, employment-type and location-type tags on a case card were
+styled only under a `.card` ancestor selector, which the map's and this
+tab's shared case-detail list (`PlaceCaseList`) never has — so there they
+rendered as bare, unstyled text instead of the same bordered pill they show
+on the board. De-scoped both rules so the same class means the same look
+everywhere it's used, rather than duplicating the styling under a second
+selector.
+
+An unset follow-up ("none set") or an empty contact log ("nothing logged")
+in that same detail list now render muted and italic instead of matching the
+weight of a real value, so an empty field reads as empty at a glance instead
+of looking like data.
 
 ## Structured modules and LaTeX output
 

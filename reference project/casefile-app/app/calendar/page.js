@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { todayStr } from "@/lib/followups";
 import {
+  EVENT_KINDS,
   appsOnDate,
   buildMonthGrid,
+  countDistinctByKind,
+  filterByKind,
   groupAppsByDate,
   monthLabel,
   shiftMonth
@@ -24,6 +27,7 @@ export default function CalendarPage() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(today);
+  const [enabledKinds, setEnabledKinds] = useState(EVENT_KINDS.map(k => k.value));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -39,11 +43,22 @@ export default function CalendarPage() {
     () => buildMonthGrid(viewYear, viewMonth, today),
     [viewYear, viewMonth, today]
   );
-  const byDate = useMemo(() => groupAppsByDate(apps, today), [apps, today]);
+  // Unfiltered, so a chip's own count never changes depending on whether
+  // that chip happens to be switched on -- and filtered, which is what the
+  // grid and the selected day's list actually use.
+  const fullByDate = useMemo(() => groupAppsByDate(apps, today), [apps, today]);
+  const byDate = useMemo(() => filterByKind(fullByDate, enabledKinds), [fullByDate, enabledKinds]);
+  const kindCounts = useMemo(() => countDistinctByKind(fullByDate), [fullByDate]);
   const selectedApps = useMemo(
     () => (selectedDate ? appsOnDate(byDate, selectedDate) : []),
     [byDate, selectedDate]
   );
+
+  function toggleKind(kind) {
+    setEnabledKinds(prev =>
+      prev.includes(kind) ? prev.filter(k => k !== kind) : [...prev, kind]
+    );
+  }
 
   function goToMonth(delta) {
     const next = shiftMonth(viewYear, viewMonth, delta);
@@ -69,7 +84,8 @@ export default function CalendarPage() {
         <div>
           <h2 className="map-title">Calendar</h2>
           <p className="hint" style={{ margin: 0 }}>
-            Every date applied and every follow-up due, laid out by day.
+            Every date applied, interview logged, and follow-up due, laid out
+            by day.
           </p>
         </div>
         <div className="cal-nav">
@@ -78,6 +94,39 @@ export default function CalendarPage() {
           <button type="button" className="btn-secondary-inline" onClick={() => goToMonth(1)} aria-label="Next month">›</button>
           <button type="button" className="btn-secondary-inline" onClick={goToToday}>Today</button>
         </div>
+      </div>
+
+      <div className="filter-row-chips" role="group" aria-label="Filter by event kind">
+        {EVENT_KINDS.map(k => {
+          const on = enabledKinds.includes(k.value);
+          return (
+            <button
+              key={k.value}
+              type="button"
+              className={`stage-chip ${on ? "active" : ""}`}
+              onClick={() => toggleKind(k.value)}
+              aria-pressed={on}
+            >
+              {k.value === "followup" ? (
+                // Follow-up dots vary by urgency (red/amber/blue), so the
+                // chip shows all three rather than one colour that would
+                // only ever match some of them.
+                <span className="cal-kind-swatch-multi">
+                  <span className="map-legend-dot" style={{ background: "var(--rejected)" }} />
+                  <span className="map-legend-dot" style={{ background: "#9A6400" }} />
+                  <span className="map-legend-dot" style={{ background: "var(--applied)" }} />
+                </span>
+              ) : (
+                <span
+                  className="map-legend-dot"
+                  style={{ background: k.value === "applied" ? "var(--accent)" : "#10B981" }}
+                />
+              )}
+              {k.label}
+              <span className="filter-chip-count">{kindCounts[k.value]}</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -96,6 +145,7 @@ export default function CalendarPage() {
               <span className="cal-legend-item"><span className="cal-dot" style={{ background: "#9A6400" }} />Follow-up due soon</span>
               <span className="cal-legend-item"><span className="cal-dot" style={{ background: "var(--applied)" }} />Follow-up scheduled</span>
               <span className="cal-legend-item"><span className="cal-dot" style={{ background: "var(--accent)" }} />Applied that day</span>
+              <span className="cal-legend-item"><span className="cal-dot" style={{ background: "#10B981" }} />Interview logged</span>
             </div>
           </div>
 
@@ -107,7 +157,11 @@ export default function CalendarPage() {
               )}
             </div>
             {selectedApps.length === 0 ? (
-              <p className="hint">Nothing applied or due this day.</p>
+              <p className="hint">
+                {enabledKinds.length === 0
+                  ? "No event kinds are switched on above."
+                  : "Nothing matches the current filters on this day."}
+              </p>
             ) : (
               <PlaceCaseList
                 place={{ apps: selectedApps }}

@@ -2,30 +2,39 @@
 
 import { WEEKDAY_LABELS, appsOnDate } from "@/lib/calendar";
 
-// Same colours the board's follow-up chips and card badges already use, so
-// a red dot here means exactly what a red badge means everywhere else.
+// Follow-up dots reuse the same colours the board's follow-up chips and
+// card badges already use, so a red dot here means exactly what a red badge
+// means everywhere else. Applied and interview dots reuse the app's own
+// accent and the Interview pipeline stage's colour, for the same reason.
 const BUCKET_COLOR = {
   overdue: "var(--rejected)",
   soon: "#9A6400",
   scheduled: "var(--applied)"
 };
+const KIND_COLOR = {
+  applied: "var(--accent)",
+  interview: "#10B981"
+};
 
 const MAX_DOTS = 4;
 
-/** One day's dots: a follow-up dot per bucket present, an "applied" dot if
- *  any case was applied to that day, capped with a "+N" overflow count. */
+/** One day's dots: a follow-up dot per urgency bucket present, plus one dot
+ *  each for applied/interview if either happened that day -- capped with a
+ *  "+N" overflow count so a busy day doesn't spill dots outside the cell. */
 function DayDots({ entries }) {
   if (entries.length === 0) return null;
 
   const buckets = new Set();
-  let appliedCount = 0;
+  const kinds = new Set();
   entries.forEach(e => {
     if (e.kind === "followup") buckets.add(e.bucket);
-    else appliedCount++;
+    else kinds.add(e.kind);
   });
 
-  const dots = [...buckets].map(b => ({ key: `f-${b}`, color: BUCKET_COLOR[b] }));
-  if (appliedCount > 0) dots.push({ key: "applied", color: "var(--accent)" });
+  const dots = [
+    ...[...buckets].map(b => ({ key: `f-${b}`, color: BUCKET_COLOR[b] })),
+    ...[...kinds].map(k => ({ key: k, color: KIND_COLOR[k] }))
+  ];
 
   const shown = dots.slice(0, MAX_DOTS);
   const overflow = dots.length - shown.length;
@@ -41,9 +50,10 @@ function DayDots({ entries }) {
 }
 
 /**
- * A plain month grid -- the point of this tab is to just show the dates, so
- * there's no drag-and-drop rescheduling or per-stage filtering here, only
- * "does this day have anything on it" and "click it to find out what".
+ * A plain month grid -- the point of this tab is to just show the dates, not
+ * to become a second board, so there's no drag-and-drop rescheduling here.
+ * It does support filtering which event kinds are plotted at all (the page
+ * decides that by pre-filtering `byDate` before handing it down).
  */
 export default function CalendarGrid({ grid, byDate, selectedDate, onSelectDate }) {
   return (

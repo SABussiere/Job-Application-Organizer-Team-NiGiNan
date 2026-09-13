@@ -58,12 +58,24 @@ export function shiftMonth(year, month, delta) {
 }
 
 /**
- * Every application indexed by the calendar day it belongs to. A case can
- * appear on two different days here — the day it was applied to, and the
- * day its follow-up is due — since both are real events worth seeing.
- * Rejected cases are skipped for the follow-up day (matching
- * followUpBucket's own rule: there's nothing left to chase) but still show
- * on their applied day, since that already happened.
+ * The three kinds of day a case can land on, and what a filter chip for each
+ * should say. Order here is the display/priority order used everywhere else
+ * in this module (applied, then interview, then follow-up).
+ */
+export const EVENT_KINDS = [
+  { value: "applied", label: "Applied" },
+  { value: "interview", label: "Interview" },
+  { value: "followup", label: "Follow-up" }
+];
+
+/**
+ * Every application indexed by the calendar day it belongs to. A single case
+ * can appear on several different days here: the day it was applied to,
+ * the day of any interview logged in its communications, and the day its
+ * follow-up is due — all real events worth seeing. Rejected cases are
+ * skipped for the follow-up day (matching followUpBucket's own rule: there's
+ * nothing left to chase) but still show on their applied and interview days,
+ * since those already happened regardless of how the case ended.
  */
 export function groupAppsByDate(apps, today = todayStr()) {
   const byDate = new Map();
@@ -78,6 +90,11 @@ export function groupAppsByDate(apps, today = todayStr()) {
     if (app.dateApplied) {
       add(app.dateApplied, { app, kind: "applied" });
     }
+    (app.communications || []).forEach(comm => {
+      if (comm.type === "interview" && comm.date) {
+        add(comm.date, { app, kind: "interview" });
+      }
+    });
     if (app.followUpDate && app.status !== "rejected") {
       add(app.followUpDate, { app, kind: "followup", bucket: followUpBucket(app, today) });
     }
@@ -86,18 +103,50 @@ export function groupAppsByDate(apps, today = todayStr()) {
   return byDate;
 }
 
-/** All apps landing on one day, applied-entries first, for a detail list. */
+/**
+ * A copy of `byDate` with only the given event kinds kept, and any day that
+ * ends up with nothing left dropped entirely — so a filtered-out kind can
+ * never leave a stray empty dot or an emptied-but-still-"has events" day.
+ */
+export function filterByKind(byDate, enabledKinds) {
+  const enabled = new Set(enabledKinds);
+  const filtered = new Map();
+  for (const [date, entries] of byDate) {
+    const kept = entries.filter(e => enabled.has(e.kind));
+    if (kept.length > 0) filtered.set(date, kept);
+  }
+  return filtered;
+}
+
+/**
+ * How many distinct cases carry each event kind at all, across every date in
+ * `byDate` (typically the *unfiltered* map, so a filter chip's own count
+ * doesn't change depending on whether that chip happens to be on).
+ */
+export function countDistinctByKind(byDate) {
+  const seen = { applied: new Set(), interview: new Set(), followup: new Set() };
+  for (const entries of byDate.values()) {
+    entries.forEach(e => { seen[e.kind]?.add(e.app.id); });
+  }
+  return {
+    applied: seen.applied.size,
+    interview: seen.interview.size,
+    followup: seen.followup.size
+  };
+}
+
+/** All apps landing on one day, in EVENT_KINDS order, for a detail list. */
 export function appsOnDate(byDate, dateStr) {
   const entries = byDate.get(dateStr) || [];
   const seen = new Set();
   const ordered = [];
-  // Applied first, then follow-up-only entries, so a case that both was
-  // applied to *and* has a follow-up due the same day isn't listed twice.
-  entries
-    .filter(e => e.kind === "applied")
-    .forEach(e => { if (!seen.has(e.app.id)) { seen.add(e.app.id); ordered.push(e.app); } });
-  entries
-    .filter(e => e.kind === "followup")
-    .forEach(e => { if (!seen.has(e.app.id)) { seen.add(e.app.id); ordered.push(e.app); } });
+  // One pass per kind in display order, so a case that landed here for
+  // several reasons (applied and interviewed the same day, say) is listed
+  // once, at the position of whichever reason ranks first.
+  EVENT_KINDS.forEach(({ value }) => {
+    entries
+      .filter(e => e.kind === value)
+      .forEach(e => { if (!seen.has(e.app.id)) { seen.add(e.app.id); ordered.push(e.app); } });
+  });
   return ordered;
 }
