@@ -211,11 +211,6 @@ export default function ResumePage() {
   const [latex, setLatex] = useState("");
   const [profile, setProfile] = useState(null);
   const [rendering, setRendering] = useState(false);
-  const [jobUrl, setJobUrl] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
-  const [tailoredResume, setTailoredResume] = useState("");
-  const [tailorStatus, setTailorStatus] = useState("");
-  const [tailorError, setTailorError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -244,33 +239,6 @@ export default function ResumePage() {
   async function addModule() {
     const module = await api.createResumeModule({ type: "experience" });
     setModules(prev => [...prev, module]);
-  }
-
-  async function generateTailoredResume() {
-    setTailorError("");
-    setTailorStatus("Generating tailored resume...");
-    try {
-      const latestModules = await api.listResumeModules();
-      if (latestModules.length === 0) {
-        throw new Error("Add at least one master resume module before tailoring.");
-      }
-
-      const latestProfile = await api.getResumeProfile();
-      const result = await api.tailorResume({
-        jobUrl,
-        jobDescription,
-        profile: latestProfile,
-        modules: latestModules
-      });
-
-      setModules(latestModules);
-      setProfile(latestProfile);
-      setTailoredResume(result.tailoredResume || "");
-      setTailorStatus(result.warning ? `Generated. URL note: ${result.warning}` : "Generated tailored resume.");
-    } catch (error) {
-      setTailorStatus("");
-      setTailorError(error.message);
-    }
   }
 
   function handleSaved(updated) {
@@ -321,59 +289,6 @@ export default function ResumePage() {
       </p>
 
       <ResumeProfileEditor />
-
-      <section className="tailor-panel">
-        <div>
-          <h3>Tailor From a Job Posting</h3>
-          <p className="hint">
-            Paste a job link or the job description. Casefile uses your saved resume modules as the source evidence.
-          </p>
-        </div>
-
-        <div className="mfield">
-          <label>Job posting link</label>
-          <input
-            value={jobUrl}
-            onChange={e => setJobUrl(e.target.value)}
-            placeholder="https://company.com/careers/software-developer"
-          />
-        </div>
-
-        <div className="mfield">
-          <label>Job description</label>
-          <textarea
-            className="module-content-input"
-            value={jobDescription}
-            onChange={e => setJobDescription(e.target.value)}
-            placeholder="Paste responsibilities, qualifications, and keywords here..."
-            rows={6}
-          />
-        </div>
-
-        <div className="module-list-actions">
-          <button
-            className="btn-primary"
-            onClick={generateTailoredResume}
-            disabled={tailorStatus.startsWith("Generating")}
-          >
-            {tailorStatus.startsWith("Generating") ? "Generating..." : "Generate tailored resume"}
-          </button>
-          {tailorStatus && <span className="saved-note">{tailorStatus}</span>}
-          {tailorError && <span className="error-note">{tailorError}</span>}
-        </div>
-
-        {tailoredResume && (
-          <div className="mfield">
-            <label>Generated resume</label>
-            <textarea
-              className="resume-input"
-              value={tailoredResume}
-              onChange={e => setTailoredResume(e.target.value)}
-              rows={18}
-            />
-          </div>
-        )}
-      </section>
 
       {loading ? (
         <p className="hint">Loading...</p>
