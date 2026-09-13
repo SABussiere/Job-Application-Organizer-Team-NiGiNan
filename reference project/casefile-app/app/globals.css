@@ -355,6 +355,12 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
 }
 .btn-danger:hover { background: #FEF2F3; }
+.module-actions .btn-danger {
+  background: var(--rejected);
+  color: #fff;
+  border: none;
+}
+.module-actions .btn-danger:hover { background: #B91C1C; }
 .btn-secondary-inline {
   background: var(--surface); border: 1px solid var(--border); color: var(--ink);
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
