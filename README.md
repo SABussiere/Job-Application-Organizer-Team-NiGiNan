@@ -205,21 +205,44 @@ on names would have silently dropped every US application from the heat map.
 ### State and province detail
 
 `world-atlas` has no data below the country level, for anywhere. Getting a
-finer grain than "the whole country" means a second dataset, and there is no
-small, reliably-projected file covering every country's states and provinces
-at once — a global one is many megabytes, an order of magnitude past
-everything else this map bundles.
+finer grain than "the whole country" means a second dataset per country —
+there is no small, reliably-projected file covering every country's states
+and provinces at once; a global one is many megabytes, an order of magnitude
+past everything else this map bundles — so detail is added one country at a
+time.
 
-The scope taken instead: add state detail one country at a time, starting
-with the US via `us-atlas` (114KB, official Census Bureau shapes, plain
-longitude/latitude so it composes with the same projections as the rest of
-the map). A pin inside the US resolves to its state; a click, a heat colour,
-and the "cases here" panel all follow. Every other country still resolves at
-the country level, and cities everywhere are already exact points — they
-were never rounded to a country to begin with. Adding another country means
-finding an equally small, unprojected TopoJSON source for it and appending
-it the same way `components/WorldMap.js` already does for the US (the
-`REGIONS` array).
+**United States** — `us-atlas` (114KB), an official Census Bureau dataset
+from the same maintainers as `world-atlas`, already in plain lon/lat.
+
+**Canada** — no equally official npm package exists, so this one is a
+hand-built asset at `lib/geo-data/canada-provinces-10m.json` (60KB): the 10
+provinces and 3 territories from Statistics Canada's cartographic boundary
+files, republished under the MIT license by
+[sachijay/canada_maps](https://github.com/sachijay/canada_maps), reprojected
+from Statistics Canada's Lambert projection to WGS84 lon/lat with `proj4`
+(the source ships in a projected coordinate system that looks like
+plausible-but-wrong lon/lat if used as-is — its eastings and northings are
+large enough to pass a casual glance), then simplified with `mapshaper`.
+`lib/geo-data/README.md` has the exact reprojection parameters and rebuild
+command, and the license text, so this can be regenerated or extended
+without redoing that research.
+
+A pin inside a covered country resolves to its state or province — a click,
+a heat colour, and the "cases here" panel all follow, and its border draws
+thinner than a country's so the map doesn't read the same at both scales.
+Every uncovered country still resolves at the whole-country level, and
+cities everywhere are already exact points regardless — they were never
+rounded to a country to begin with. Adding another country means finding (or
+building, as with Canada) an equally small, unprojected TopoJSON source for
+it and appending it to the `REGIONS` array in `components/WorldMap.js` the
+same way.
+
+Verified for both countries by checking that real cities resolve to the
+right subdivision rather than assuming a simplified boundary still holds:
+seven for the US, fourteen for Canada (one per province and territory),
+plus a same-named-city check (Toronto, Ontario against Toronto, Ohio) to
+confirm the country-vs-state split doesn't blur at a name that exists on
+both sides of the border.
 
 Three `world-atlas` features — Northern Cyprus, Somaliland and Kosovo — ship
 with no id in the 110m file, which collided all three onto the same map key.

@@ -12,6 +12,7 @@ import {
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-110m.json";
 import usTopo from "us-atlas/states-10m.json";
+import caTopo from "@/lib/geo-data/canada-provinces-10m.json";
 import { STAGES, stageMeta } from "@/lib/constants";
 import { HEAT_EMPTY, heatColor, usedBins } from "@/lib/mapScale";
 
@@ -43,10 +44,24 @@ const US_STATES = feature(usTopo, usTopo.objects.states).features.map(f => ({
   properties: { name: f.properties.name, country: "United States" }
 }));
 
-// The regions actually drawn and hit-tested: every country except the US,
-// which is replaced by its states so heat shading and clicks resolve at
+// Canada has no equally official sibling package, so this one is a
+// hand-built asset in lib/geo-data (see that folder's README for source,
+// licence and how to rebuild it) rather than an npm dependency.
+const CANADA_COUNTRY_ID = "124";
+const CANADA_PROVINCES = feature(caTopo, caTopo.objects.provinces).features.map((f, i) => ({
+  ...f,
+  id: `ca-${i}`,
+  properties: { name: f.properties.name, country: "Canada" }
+}));
+
+// The regions actually drawn and hit-tested: every country except the ones
+// replaced by their subdivisions, so heat shading and clicks resolve at
 // that finer grain there.
-const REGIONS = [...COUNTRIES.filter(f => f.id !== US_COUNTRY_ID), ...US_STATES];
+const REGIONS = [
+  ...COUNTRIES.filter(f => f.id !== US_COUNTRY_ID && f.id !== CANADA_COUNTRY_ID),
+  ...US_STATES,
+  ...CANADA_PROVINCES
+];
 
 const FLAT = { width: 960, height: 480 };
 const GLOBE = { width: 620, height: 620 };
@@ -216,7 +231,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
         role="img"
         aria-label={
           isHeat
-            ? `Applications across ${counts.size} ${counts.size === 1 ? "region" : "regions"} -- countries, and states within the United States`
+            ? `Applications across ${counts.size} ${counts.size === 1 ? "region" : "regions"} -- countries, and states or provinces within the US and Canada`
             : `${places.length} locations with applications`
         }
         onPointerDown={onPointerDown}
@@ -228,8 +243,8 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
         <path className="map-graticule" d={graticule} />
 
         {REGIONS.map(f => {
-          const isState = f.id.startsWith("us-");
-          const regionLabel = isState
+          const isSubdivision = f.id.startsWith("us-") || f.id.startsWith("ca-");
+          const regionLabel = isSubdivision
             ? `${f.properties.name}, ${f.properties.country}`
             : f.properties.name;
           const count = counts.get(f.id) || 0;
@@ -240,7 +255,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
             <path
               key={f.id}
               className={
-                `map-country ${isState ? "is-subdivision" : ""} ` +
+                `map-country ${isSubdivision ? "is-subdivision" : ""} ` +
                 `${isHeat && count ? "has-data" : ""} ${hasPlaces ? "has-places" : ""} ${isSelected ? "selected" : ""}`
               }
               d={path(f)}
@@ -257,7 +272,7 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
                       key: `region:${f.id}`,
                       geo: {
                         city: f.properties.name,
-                        country: isState ? f.properties.country : ""
+                        country: isSubdivision ? f.properties.country : ""
                       },
                       apps: allApps,
                       status: dominantStatus(allApps)
@@ -342,9 +357,9 @@ export default function WorldMap({ apps, mode, view, onSelectPlace, selectedKey 
             </span>
           </span>
           <span className="map-legend-note">
-            Shading counts applications per country, and per state within
-            the United States. Pins keep their stage colour, so you can
-            still select a city.
+            Shading counts applications per country, and per state or
+            province within the US and Canada. Pins keep their stage
+            colour, so you can still select a city.
           </span>
         </div>
       ) : (
