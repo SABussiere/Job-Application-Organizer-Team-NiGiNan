@@ -8,7 +8,8 @@ const LINKS = [
   { href: "/", label: "Case Board", icon: "🗂" },
   { href: "/resume", label: "Master Resume", icon: "📄" },
   { href: "/map", label: "Map", icon: "🌍" },
-  { href: "/review", label: "Email Review", icon: "📥" }
+  { href: "/review", label: "Email Review", icon: "📥" },
+  { href: "/prep", label: "Tips & Tricks", icon: "🎯" }
 ];
 
 export default function Nav() {
