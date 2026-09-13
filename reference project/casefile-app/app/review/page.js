@@ -58,11 +58,12 @@ export default function ReviewPage() {
       }
       if (!res.ok) throw new Error(`Sync failed (${res.status})`);
       const data = await res.json();
-      setSyncMessage(
+      const message =
         data.queued > 0
           ? `Scanned ${data.scanned}, queued ${data.queued} new.`
-          : `Scanned ${data.scanned}, nothing new.`
-      );
+          : `Scanned ${data.scanned}, nothing new to review.`;
+      setSyncMessage(message);
+      setTimeout(() => setSyncMessage(""), 4000);
       load();
     } catch (err) {
       setSyncMessage(err.message);
@@ -141,16 +142,16 @@ export default function ReviewPage() {
     <div className="panel">
       <div className="review-header">
         <div>
-          <h2>Email review</h2>
+          <h2>Email Review</h2>
           <p className="hint" style={{ margin: 0 }}>
-            Guesses from your synced inbox — check the fields, then confirm or dismiss.
+            Scans from your synced inbox, make sure to check the fields, then confirm, edit, or dismiss.
           </p>
         </div>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
           {syncing ? "Syncing..." : "Scan Gmail"}
         </button>
       </div>
-      {syncMessage && <p className="hint">{syncMessage}</p>}
+      {syncMessage && <div className="sync-toast" role="status" aria-live="polite">{syncMessage}</div>}
 
       {pending.length === 0 ? (
         <p className="hint">Nothing to review right now.</p>
