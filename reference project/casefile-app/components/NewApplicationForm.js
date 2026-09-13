@@ -33,11 +33,24 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
     geo: null,
     jobUrl: "",
     followUpDate: "",
-    notes: ""
+    notes: "",
+    jobDescription: ""
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const firstField = useRef(null);
+  const [importing, setImporting] =
+  useState(false);
+
+  const [
+    importMessage,
+    setImportMessage
+  ] = useState("");
+
+  const [
+    pendingSnapshotId,
+    setPendingSnapshotId
+  ] = useState("");
 
   useEffect(() => {
     firstField.current?.focus();
@@ -73,6 +86,162 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
+
+  async function importIndeedJob() {
+  const url =
+    form.jobUrl.trim();
+
+  if (!url || importing) {
+    return;
+  }
+
+  setImporting(true);
+  setError("");
+  setImportMessage("");
+
+  try {
+    const controller =
+      new AbortController();
+
+    const timeout =
+      setTimeout(
+        () => controller.abort(),
+        35000
+      );
+
+    let response;
+
+    try {
+      response =
+        await fetch(
+          "/jobs/import",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+            url: form.jobUrl.trim(),
+            company: form.company.trim(),
+            position: form.position.trim()
+          }), 
+
+            signal:
+              controller.signal
+          }
+        );
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const raw =
+      await response.text();
+
+    let data = {};
+
+    try {
+      data =
+        raw
+          ? JSON.parse(raw)
+          : {};
+    } catch {
+      throw new Error(
+        `Import service returned an invalid response (${response.status}).`
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        `Unable to import job (${response.status}).`
+      );
+    }
+
+    setForm(prev => ({
+      ...prev,
+
+      company:
+        data.company ||
+        prev.company,
+
+      position:
+        data.position ||
+        prev.position,
+
+      location:
+        data.location ||
+        prev.location,
+
+      /*
+       * Deliberately do not overwrite your
+       * custom role grouping.
+       */
+      jobType:
+        prev.jobType,
+
+      requisitionId:
+        data.requisitionId ||
+        prev.requisitionId,
+
+      jobUrl:
+        data.sourceUrl ||
+        prev.jobUrl,
+
+      jobDescription:
+        data.jobDescription ||
+        prev.jobDescription
+    }));
+
+    const missing = [];
+
+    if (!data.company) {
+      missing.push("company");
+    }
+
+    if (!data.position) {
+      missing.push("position");
+    }
+
+    if (!data.location) {
+      missing.push("location");
+    }
+
+    if (!data.requisitionId) {
+      missing.push(
+        "requisition ID"
+      );
+    }
+
+    if (missing.length) {
+      setImportMessage(
+        `Imported from Indeed. Left ${missing.join(", ")} blank because TheirStack did not provide a confident value.`
+      );
+    } else {
+      setImportMessage(
+        "Indeed posting imported successfully."
+      );
+    }
+  } catch (err) {
+    if (
+      err?.name ===
+      "AbortError"
+    ) {
+      setError(
+        "TheirStack took too long to respond."
+      );
+    } else {
+      setError(
+        err?.message ||
+        "Unable to import this job."
+      );
+    }
+  } finally {
+    setImporting(false);
+  }
+}
 
   async function submit(e) {
     e.preventDefault();
@@ -192,13 +361,56 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
             />
           </div>
           <div className="mfield">
-            <label htmlFor="na-url">Job posting link</label>
-            <input
-              id="na-url"
-              value={form.jobUrl}
-              onChange={e => set("jobUrl", e.target.value)}
-              placeholder="https://..."
-            />
+            <label htmlFor="na-url">
+              Indeed job posting link
+            </label>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                alignItems: "center"
+              }}
+            >
+              <input
+                id="na-url"
+                type="url"
+                value={form.jobUrl}
+                onChange={e => {
+                  set(
+                    "jobUrl",
+                    e.target.value
+                  );
+
+                  setImportMessage("");
+                  setPendingSnapshotId("");
+                }}
+                placeholder="https://ca.indeed.com/viewjob?jk=..."
+                style={{
+                  flex: 1
+                }}
+              />
+
+              <button
+                type="button"
+                className="btn-secondary-inline"
+                onClick={importIndeedJob}
+                disabled={
+                  !form.jobUrl.trim() ||
+                  importing
+                }
+              >
+                {importing
+                  ? "Importing..."
+                  : "Import"}
+              </button>
+            </div>
+
+            {importMessage && (
+              <p className="field-note">
+                {importMessage}
+              </p>
+            )}
           </div>
         </div>
 
@@ -230,7 +442,30 @@ export default function NewApplicationForm({ onClose, onCreated, apps = [] }) {
             />
           </div>
         </div>
+          {form.jobDescription && (
+            <div className="mfield">
+              <label htmlFor="na-description">
+                Imported job description
+              </label>
 
+              <textarea
+                id="na-description"
+                rows={8}
+                value={form.jobDescription}
+                onChange={e =>
+                  set(
+                    "jobDescription",
+                    e.target.value
+                  )
+                }
+                placeholder="Imported Indeed job description..."
+              />
+
+              <p className="field-note">
+                Imported from Indeed. You can edit this before saving the application.
+              </p>
+            </div>
+          )}  
         <div className="mfield">
           <label htmlFor="na-notes">Notes</label>
           <textarea
