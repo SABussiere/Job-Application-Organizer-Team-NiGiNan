@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "Case Board", icon: "🗂" },
   { href: "/resume", label: "Master Resume", icon: "📄" },
   { href: "/map", label: "Map", icon: "🌍" },
+  { href: "/calendar", label: "Calendar", icon: "🗓" },
   { href: "/review", label: "Email Review", icon: "📥" }
 ];
 

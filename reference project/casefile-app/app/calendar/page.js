@@ -1,0 +1,132 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
+import { todayStr } from "@/lib/followups";
+import {
+  appsOnDate,
+  buildMonthGrid,
+  groupAppsByDate,
+  monthLabel,
+  shiftMonth
+} from "@/lib/calendar";
+import CalendarGrid from "@/components/CalendarGrid";
+import PlaceCaseList from "@/components/PlaceCaseList";
+import ApplicationModal from "@/components/ApplicationModal";
+
+export default function CalendarPage() {
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState(null);
+
+  const today = useMemo(() => todayStr(), []);
+  const now = useMemo(() => new Date(), []);
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selectedDate, setSelectedDate] = useState(today);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api.listApplications().then(data => {
+      setApps(data);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const grid = useMemo(
+    () => buildMonthGrid(viewYear, viewMonth, today),
+    [viewYear, viewMonth, today]
+  );
+  const byDate = useMemo(() => groupAppsByDate(apps, today), [apps, today]);
+  const selectedApps = useMemo(
+    () => (selectedDate ? appsOnDate(byDate, selectedDate) : []),
+    [byDate, selectedDate]
+  );
+
+  function goToMonth(delta) {
+    const next = shiftMonth(viewYear, viewMonth, delta);
+    setViewYear(next.year);
+    setViewMonth(next.month);
+  }
+
+  function goToToday() {
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    setSelectedDate(today);
+  }
+
+  function formatSelected(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  }
+
+  return (
+    <div>
+      <div className="map-header">
+        <div>
+          <h2 className="map-title">Calendar</h2>
+          <p className="hint" style={{ margin: 0 }}>
+            Every date applied and every follow-up due, laid out by day.
+          </p>
+        </div>
+        <div className="cal-nav">
+          <button type="button" className="btn-secondary-inline" onClick={() => goToMonth(-1)} aria-label="Previous month">‹</button>
+          <span className="cal-month-label">{monthLabel(viewYear, viewMonth)}</span>
+          <button type="button" className="btn-secondary-inline" onClick={() => goToMonth(1)} aria-label="Next month">›</button>
+          <button type="button" className="btn-secondary-inline" onClick={goToToday}>Today</button>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="hint">Loading your applications...</p>
+      ) : (
+        <div className="map-layout">
+          <div className="folder-panel cal-panel">
+            <CalendarGrid
+              grid={grid}
+              byDate={byDate}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
+            <div className="cal-legend">
+              <span className="cal-legend-item"><span className="cal-dot" style={{ background: "var(--rejected)" }} />Follow-up past due</span>
+              <span className="cal-legend-item"><span className="cal-dot" style={{ background: "#9A6400" }} />Follow-up due soon</span>
+              <span className="cal-legend-item"><span className="cal-dot" style={{ background: "var(--applied)" }} />Follow-up scheduled</span>
+              <span className="cal-legend-item"><span className="cal-dot" style={{ background: "var(--accent)" }} />Applied that day</span>
+            </div>
+          </div>
+
+          <aside className="map-side">
+            <div className="map-side-head">
+              <h3>{formatSelected(selectedDate)}</h3>
+              {selectedDate !== today && (
+                <button className="btn-link" onClick={() => setSelectedDate(today)}>Jump to today</button>
+              )}
+            </div>
+            {selectedApps.length === 0 ? (
+              <p className="hint">Nothing applied or due this day.</p>
+            ) : (
+              <PlaceCaseList
+                place={{ apps: selectedApps }}
+                today={today}
+                onOpen={setOpenId}
+              />
+            )}
+          </aside>
+        </div>
+      )}
+
+      {openId && (
+        <ApplicationModal
+          appId={openId}
+          apps={apps}
+          onClose={() => setOpenId(null)}
+          onChanged={load}
+        />
+      )}
+    </div>
+  );
+}

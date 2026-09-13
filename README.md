@@ -267,6 +267,28 @@ split into locations that are Unknown and legacy text that was never checked.
 A map that silently omits cases would be worse than no map, so the count is
 always visible.
 
+## Calendar tab
+
+A plain month grid of every date applied and every follow-up due, one dot per
+event on the day it falls on: red for a follow-up past due, amber for one due
+within a week, blue for one further out, teal for a day something was applied
+to. Clicking a day lists its cases beside the grid (the same read-only detail
+list the map uses) and opens straight into the case from there.
+
+Deliberately minimal — no per-stage filtering, no drag-to-reschedule, no year
+view. The board and the map already answer "what needs attention"; this tab
+only answers "what happened, and what's due, on this particular day," so it
+stays a plain calendar rather than growing into a second board.
+
+A rejected case's follow-up date is left off the grid, matching
+`followUpBucket`'s own rule elsewhere in the app that there's nothing left to
+chase once a case is rejected — its applied-on date still shows, since that
+already happened. The grid itself and the day-grouping are pure functions in
+`lib/calendar.js`, unit-tested against a real calendar month (leap years,
+month-end wraparounds, a case applied to and followed up on the same day)
+rather than trusted by inspection, since a calendar is exactly the kind of
+code where an off-by-one is easy to miss by eye.
+
 ## Structured modules and LaTeX output
 
 A module is not a blob of text. Each carries the fields a resume line needs:
