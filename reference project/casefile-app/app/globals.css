@@ -12,7 +12,7 @@
   --applied: #3B82F6;
   --interview: #10B981;
   --offer: #F59E0B;
-  --rejected: #F43F5E;
+  --rejected: #DC2626;
 }
 
 * { box-sizing: border-box; }
@@ -984,31 +984,106 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .rs-section, .rs-entry { break-inside: avoid; }
 }
 
+.resume-panel { width: 100%; margin: 0 auto; }
+
 /* ---------- Email review queue ---------- */
+.review-panel { width: 100%; margin: 0 auto; }
 .review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-.review-count { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
-.review-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.review-item {
-  background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--stage-color, var(--applied));
-  border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+.review-group {
+  margin-top: 18px;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.42);
 }
-.review-source { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-count { font-size: 12.5px; color: var(--muted); margin: 0; font-weight: 600; }
+.review-list { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 24px; }
+.review-item {
+  position: relative;
+  z-index: 1;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.28);
+  border-top: none;
+  border-radius: 0 14px 14px 14px;
+  padding: 20px 18px 16px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+.review-item.stage-menu-open { z-index: 3; }
+
+.review-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -12px;
+  width: 42%;
+  min-width: 110px;
+  height: 14px;
+  background: var(--stage-color, var(--accent));
+  border: 1px solid var(--stage-color, var(--accent));
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+}
+.review-item::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 247, 246, 0.92));
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  z-index: 0;
+}
+.review-item > * {
+  position: relative;
+  z-index: 1;
+}
+.review-source { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .review-confidence {
   font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
   background: #FEF6E7; color: #9A6400;
 }
-.review-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+.review-fields { position: relative; z-index: 2; display: flex; gap: 10px; flex-wrap: wrap; }
 .review-field { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 5px; }
+.review-stage-field { position: relative; z-index: 2 !important; }
 .review-field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+.review-stage-label { display: inline-flex; align-items: center; gap: 5px; }
+.review-stage-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .review-field input, .review-field select {
   padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px;
   font-size: 13px; font-family: inherit; background: var(--surface); color: var(--ink);
 }
-.review-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.review-stage-select { position: relative; }
+.review-stage-trigger {
+  width: 100%; display: flex; align-items: center; gap: 7px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface);
+  color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.review-stage-trigger:hover { border-color: var(--border-strong); }
+.review-stage-chevron { margin-left: auto; color: var(--muted); font-size: 12px; }
+.review-stage-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 10;
+  display: flex; flex-direction: column; padding: 4px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+.review-stage-option {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px;
+  border: none; border-radius: 5px; background: transparent; color: var(--ink);
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.review-stage-option:hover { background: var(--bg); }
+.review-stage-option.selected { background: var(--accent-soft); color: var(--accent); }
+.review-actions { position: relative; z-index: 1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.review-actions .btn-danger {
+  background: var(--rejected);
+  color: #fff;
+  border: none;
+}
+.review-actions .btn-danger:hover { background: #B91C1C; }
 
 @media (max-width: 640px) {
   .review-header { flex-direction: column; align-items: stretch; }
   .review-fields { flex-direction: column; }
+  .review-stage-field { width: 100%; max-width: none !important; }
   .review-actions { flex-direction: column-reverse; }
   .review-actions button { width: 100%; }
 }
