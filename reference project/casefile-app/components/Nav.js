@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 const LINKS = [
-  { href: "/", label: "Case Board", icon: "🗂" },
-  { href: "/resume", label: "Master Resume", icon: "📄" },
-  { href: "/map", label: "Map", icon: "🌍" },
-  { href: "/review", label: "Email Review", icon: "📥" }
+  { href: "/", label: "Cases", icon: "/icons/case-board-icon.svg" },
+  { href: "/resume", label: "Master Resume", icon: "/icons/master-resume-icon.svg" },
+  { href: "/map", label: "Map", icon: "/icons/map-icon.svg" },
+  { href: "/review", label: "Email Review", icon: "/icons/email-review-icon.svg" }
 ];
 
 export default function Nav() {
@@ -50,7 +50,9 @@ export default function Nav() {
             href={l.href}
             className={`tab-link ${pathname === l.href ? "active" : ""}`}
           >
-            <span className="tab-icon">{l.icon}</span>
+            <span className="tab-icon" aria-hidden="true">
+              <img src={l.icon} alt="" />
+            </span>
             <span className="tab-label">{l.label}</span>
           </Link>
         ))}
