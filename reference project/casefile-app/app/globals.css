@@ -476,7 +476,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   margin-bottom: 0;
 }
 .paperclip {
-  position: absolute; top: 4px; left: 12px; z-index: 5;
+  position: absolute; top: 0; left: 12px; z-index: 5;
   width: 18px; height: 18px; color: rgba(24, 24, 27, 0.45);
   transform: rotate(-10deg);
   pointer-events: none;
@@ -494,15 +494,21 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 /* Each unselected tab sits a little lower and a little more tilted than
-   the one before it, like a fanned stack of index cards -- so all three
-   labels stay visible even though only one sheet is on top. */
-.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 2; }
-.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 1; }
+   the one before it, like a fanned stack of index cards -- so every label
+   stays visible even though only one sheet is on top. Written to cover more
+   than three tabs (a fourth, Interview Prep, was added since this was
+   first built) rather than hardcoding exactly three. */
+.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 3; }
+.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 2; }
+.paper-tab:nth-of-type(4) { transform: translateY(12px) rotate(1.8deg); z-index: 1; }
 .paper-tab:hover { color: var(--ink); }
 .paper-tab.active {
   background: #fff; color: var(--ink);
   transform: translateY(0) rotate(0deg) !important;
-  z-index: 3;
+  /* Higher than any fanned tab's own z-index (they go up to 3 for a
+     four-tab stack), not equal to the highest one -- ties would fall back
+     to DOM order, which happens to still work today but only by luck. */
+  z-index: 10;
   box-shadow: 0 -3px 8px rgba(15, 23, 42, 0.05);
 }
 
@@ -737,7 +743,11 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
      them genuinely don't fit next to each other. */
   .board-actions .btn-stamp,
   .board-actions .btn-secondary-inline { flex: 0 0 auto; }
-  .filter-row-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  /* overflow-y: visible for the same reason as .filter-row-main above: these
+     are plain buttons today with nothing that overflows vertically, but
+     leaving overflow-y to silently upgrade to auto is exactly the mistake
+     that broke two other things already. */
+  .filter-row-chips { overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 4px; }
   .filter-chip { flex-shrink: 0; }
   .link-row { flex-wrap: wrap; }
   .link-row input { flex-basis: 100%; }
@@ -755,7 +765,15 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 .filter-carousel { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .filter-row-main {
   display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
-  overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 4px;
+  overflow-x: auto;
+  /* Explicit, not the default: setting only overflow-x silently upgrades
+     overflow-y from visible to auto too (the CSS overflow spec's "visible
+     paired with non-visible" rule -- the same thing that clipped the
+     paperclip once already), which clips the Company/Position/Location
+     dropdown panels open below this row, since they're taller than the row
+     itself and would otherwise get cut down to nothing. */
+  overflow-y: visible;
+  scroll-snap-type: x proximity; scroll-padding-inline: 4px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none; min-width: 0;
   mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
@@ -835,7 +853,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 .filter-row-chips {
   display: flex; align-items: center; gap: 6px;
-  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
   -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
 .filter-chip { flex-shrink: 0; }
@@ -865,7 +883,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 
 .filter-summary {
   display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
   -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   font-size: 12.5px; color: var(--muted);
 }
@@ -1376,6 +1394,38 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   min-width: 132px; text-align: center;
 }
 .cal-panel { padding: 18px; }
+
+/* Month/year picker trigger + popover -- picking the year first, then the
+   month, rather than only stepping one month at a time. */
+.cal-picker-wrap { position: relative; }
+.cal-month-trigger {
+  font-family: inherit; background: none; border: 1px solid transparent;
+  border-radius: 7px; padding: 6px 8px; cursor: pointer;
+}
+.cal-month-trigger:hover { border-color: var(--border); }
+.cal-month-trigger.open { border-color: var(--accent); color: var(--accent); }
+
+.cal-picker-panel {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%);
+  width: 260px; max-width: 80vw; padding: 10px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+}
+.cal-picker-head {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 8px;
+}
+.cal-picker-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.cal-picker-cell {
+  padding: 8px 4px; font-size: 12.5px; font-family: inherit;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--ink); cursor: pointer; text-align: center;
+}
+.cal-picker-cell:hover { border-color: var(--border-strong); }
+.cal-picker-cell.current { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 
 .cal-weekdays {
   display: grid; grid-template-columns: repeat(7, 1fr);

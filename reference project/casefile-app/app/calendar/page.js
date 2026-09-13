@@ -16,6 +16,7 @@ import {
 import CalendarGrid from "@/components/CalendarGrid";
 import PlaceCaseList from "@/components/PlaceCaseList";
 import ApplicationModal from "@/components/ApplicationModal";
+import MonthYearPicker from "@/components/MonthYearPicker";
 
 export default function CalendarPage() {
   const [apps, setApps] = useState([]);
@@ -90,7 +91,12 @@ export default function CalendarPage() {
         </div>
         <div className="cal-nav">
           <button type="button" className="btn-secondary-inline" onClick={() => goToMonth(-1)} aria-label="Previous month">‹</button>
-          <span className="cal-month-label">{monthLabel(viewYear, viewMonth)}</span>
+          <MonthYearPicker
+            label={monthLabel(viewYear, viewMonth)}
+            year={viewYear}
+            month={viewMonth}
+            onSelect={(y, m) => { setViewYear(y); setViewMonth(m); }}
+          />
           <button type="button" className="btn-secondary-inline" onClick={() => goToMonth(1)} aria-label="Next month">›</button>
           <button type="button" className="btn-secondary-inline" onClick={goToToday}>Today</button>
         </div>
