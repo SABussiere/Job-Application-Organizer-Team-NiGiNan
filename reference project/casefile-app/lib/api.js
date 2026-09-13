@@ -83,11 +83,13 @@ function withApplicationDefaults(app) {
     jobDescription: "",
     resumeModuleOverrides: {},
     tailoredFrom: null,
+    interviewQuestionsGeneratedAt: null,
     ...app,
     resumeModuleOverrides: app.resumeModuleOverrides && typeof app.resumeModuleOverrides === "object"
       ? app.resumeModuleOverrides
       : {},
-    communications: Array.isArray(app.communications) ? app.communications : []
+    communications: Array.isArray(app.communications) ? app.communications : [],
+    interviewQuestions: Array.isArray(app.interviewQuestions) ? app.interviewQuestions : []
   };
 }
 
@@ -213,6 +215,8 @@ export const api = {
       jobDescription: data.jobDescription || "",
       resumeModuleOverrides: {},
       tailoredFrom: null,
+      interviewQuestions: [],
+      interviewQuestionsGeneratedAt: null,
       communications: [],
       createdAt: new Date().toISOString()
     };
@@ -308,6 +312,27 @@ export const api = {
     ].filter(Boolean);
 
     return { application, matchSummary };
+  },
+
+  /**
+   * Calls the server-side /api/interview-questions route (the one place
+   * that holds GROQ_API_KEY) and saves whatever it returns onto the case,
+   * the same way tailorApplication() saves a generated resume.
+   */
+  async generateInterviewQuestions(appId, { company, position, jobType, jobDescription }) {
+    const res = await fetch("/api/interview-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company, position, jobType, jobDescription })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Couldn't generate interview questions.");
+    }
+    return api.updateApplication(appId, {
+      interviewQuestions: data.questions,
+      interviewQuestionsGeneratedAt: new Date().toISOString()
+    });
   },
 
   // ---------- Resume heading ----------
