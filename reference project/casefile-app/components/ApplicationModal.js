@@ -84,6 +84,11 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
   // declarative style prop can't express without an extra render.
   const [closing, setClosing] = useState(false);
   const [flipping, setFlipping] = useState(false);
+  // "flap" (only reachable when there's a card to open from): the folder
+  // shell is showing, its lid lifting, paper rising out of it -- the real
+  // modal is still hidden. "open": steady state, folder shell gone.
+  const [openPhase, setOpenPhase] = useState(origin ? "flap" : "open");
+  const [openerAnimating, setOpenerAnimating] = useState(false);
   const modalRef = useRef(null);
   const hasOpenedRef = useRef(false);
   const reducedMotionRef = useRef(false);
@@ -134,6 +139,12 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
     return () => { cancelled = true; };
   }, [appId]);
 
+  // Timings for the two-part open: how long the folder stays showing with
+  // its lid lifting and paper rising out of it, and how long the real modal
+  // then takes to grow from there into its full size.
+  const FLAP_MS = 480;
+  const RISE_MS = 460;
+
   // Runs the first time the modal actually has something to show (data
   // loads after mount, so the ref isn't attached on the very first pass).
   // Guarded by hasOpenedRef so a later data refresh (saving, tailoring)
@@ -147,42 +158,61 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
 
     if (!origin) {
       // No card to open from (e.g. launched from the map) -- a plain,
-      // gentle entrance rather than matching a specific rectangle.
+      // gentle entrance rather than matching a specific rectangle. There's
+      // no folder shell to show first, so this is the whole animation.
       el.style.transform = "scale(0.94)";
       el.style.opacity = "0";
       requestAnimationFrame(() => {
         el.style.transition =
-          "transform 220ms cubic-bezier(0.22,1,0.36,1), opacity 180ms ease-out";
+          "transform 260ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease-out";
         el.style.transform = "none";
         el.style.opacity = "1";
       });
       return;
     }
 
-    // Classic FLIP: place the modal at its natural final position, measure
-    // it, then set an inline transform that makes it *look* like it is
-    // still sitting where the folder card was -- same centre, scaled down
-    // to the card's size, tipped back slightly as if the lid is still
-    // down. Clearing that transform on the next frame, with a transition
-    // active, is what plays as the folder lifting open and growing into
-    // the full case file.
-    const final = el.getBoundingClientRect();
-    const scaleX = origin.width / final.width;
-    const scaleY = origin.height / final.height;
-    const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
-    const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+    // Phase 1: the real modal stays invisible while a small decorative
+    // "folder" (positioned exactly over the clicked card, via `origin`)
+    // shows its lid lifting and paper rising out from underneath --
+    // triggered a frame later so the CSS transition animates from the
+    // closed state rather than the browser skipping straight to open.
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
+    requestAnimationFrame(() => setOpenerAnimating(true));
 
-    el.style.transformOrigin = "center";
-    el.style.transform =
-      `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-14deg)`;
-    el.style.opacity = "0.5";
+    setTimeout(() => {
+      // Phase 2: hand off from the folder illusion to the real modal. This
+      // is the same FLIP technique as before -- match the card's rect, then
+      // clear the transform with a transition running -- just starting once
+      // the folder has visibly finished opening rather than at the same
+      // instant as the click.
+      setOpenPhase("rising");
+      el.style.pointerEvents = "";
 
-    requestAnimationFrame(() => {
-      el.style.transition =
-        "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out";
-      el.style.transform = "none";
-      el.style.opacity = "1";
-    });
+      const final = el.getBoundingClientRect();
+      const scaleX = origin.width / final.width;
+      const scaleY = origin.height / final.height;
+      const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
+      const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+
+      el.style.transformOrigin = "center";
+      el.style.transform =
+        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-10deg)`;
+
+      requestAnimationFrame(() => {
+        el.style.transition =
+          `transform ${RISE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${RISE_MS - 100}ms ease-out`;
+        el.style.transform = "none";
+        el.style.opacity = "1";
+      });
+
+      setTimeout(() => setOpenPhase("open"), RISE_MS + 20);
+    }, FLAP_MS);
+    // Deliberately no cleanup clearing this timer: hasOpenedRef already
+    // guarantees this branch runs at most once, and clearing it on a later
+    // dependency change (app/form updating again before it fires) would
+    // leave the modal stuck showing the folder forever -- hasOpenedRef
+    // would block the effect from ever arming a replacement.
   }, [app, form, origin]);
 
   /**
@@ -198,7 +228,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
     if (!el || reducedMotionRef.current) { onClose(); return; }
 
     el.style.transition =
-      "transform 220ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms ease-in";
+      "transform 300ms cubic-bezier(0.4, 0, 1, 1), opacity 260ms ease-in";
     if (origin) {
       const final = el.getBoundingClientRect();
       const scaleX = origin.width / final.width;
@@ -206,7 +236,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
       const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
       const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
       el.style.transform =
-        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-14deg)`;
+        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-10deg)`;
     } else {
       el.style.transform = "scale(0.94)";
     }
@@ -222,7 +252,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
     el.addEventListener("transitionend", finish);
     // Safety net: transitionend can fail to fire (e.g. the tab loses
     // focus mid-transition), and the modal must not get stuck open.
-    setTimeout(finish, 260);
+    setTimeout(finish, 340);
   }
 
   /**
@@ -375,6 +405,28 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
+      {openPhase === "flap" && origin && (
+        // A decorative stand-in for the real modal: sits exactly over the
+        // clicked card (via `origin`) and shows its lid lifting with paper
+        // rising out from underneath, before the real modal takes over.
+        <div
+          className={`case-opener ${openerAnimating ? "opening" : ""}`}
+          style={{
+            left: origin.left,
+            top: origin.top,
+            width: origin.width,
+            height: origin.height
+          }}
+          aria-hidden="true"
+        >
+          <div className="case-opener-body" />
+          <span className="case-opener-paper p1" />
+          <span className="case-opener-paper p2" />
+          <span className="case-opener-paper p3" />
+          <div className="case-opener-flap" />
+        </div>
+      )}
+
       <div
         className={`modal ${closing ? "closing" : ""} ${flipping ? "flipping" : ""}`}
         ref={modalRef}
