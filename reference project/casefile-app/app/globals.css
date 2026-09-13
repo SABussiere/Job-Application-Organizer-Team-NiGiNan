@@ -439,12 +439,18 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 .paper-stack-tabs {
   position: relative;
   display: flex;
-  padding-top: 16px;
+  /* Tall enough that the paperclip sits fully inside this box rather than
+     poking above it -- a negative top on .paperclip previously relied on
+     this container never clipping overflow, which broke the moment the
+     mobile rule below added overflow-x (overflow-x set on its own silently
+     upgrades overflow-y from visible to auto too, so anything poking past
+     the top edge, like the clip, got clipped for real). */
+  padding-top: 22px;
   margin-bottom: 0;
 }
 .paperclip {
-  position: absolute; top: -10px; left: 14px; z-index: 5;
-  width: 20px; height: 20px; color: rgba(24, 24, 27, 0.45);
+  position: absolute; top: 4px; left: 12px; z-index: 5;
+  width: 18px; height: 18px; color: rgba(24, 24, 27, 0.45);
   transform: rotate(-10deg);
   pointer-events: none;
 }
@@ -865,7 +871,12 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
      letting the row scroll sideways is a safety net that holds regardless
      of label length, rather than depending on font/padding math staying
      just barely small enough. */
-  .paper-stack-tabs { overflow-x: auto; scrollbar-width: none; }
+  /* overflow-y: visible is explicit, not the default: setting only
+     overflow-x makes the browser silently compute overflow-y as auto too
+     (the CSS overflow spec's "visible paired with non-visible" rule),
+     which would clip the paperclip and anything else placed above this
+     row's own edge. */
+  .paper-stack-tabs { overflow-x: auto; overflow-y: visible; scrollbar-width: none; }
   .paper-stack-tabs::-webkit-scrollbar { display: none; }
   .paper-tab { flex-shrink: 0; }
   .latex-actions { flex-direction: column; align-items: stretch; }
