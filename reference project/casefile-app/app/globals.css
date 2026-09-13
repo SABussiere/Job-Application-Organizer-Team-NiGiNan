@@ -433,24 +433,155 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(24, 24, 27, 0.4); z-index: 50;
   display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto;
+  /* Depth for the case modal's open/close tilt and the paper flip between
+     tabs -- both use 3D transforms on descendants of .modal. */
+  perspective: 1600px;
 }
 .modal {
   background: var(--surface); border-radius: 16px; width: 100%; max-width: 680px;
   padding: 28px 30px 26px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.14);
   border: 1px solid var(--border);
+  perspective: 1200px;
+  will-change: transform, opacity;
 }
+/* Opening/closing transforms are set inline by ApplicationModal.js (a FLIP
+   animation needs the actual measured rect, which CSS alone can't know),
+   so these classes exist for state/debugging rather than carrying rules
+   of their own. */
+.modal.closing { pointer-events: none; }
 .modal-close {
   position: absolute; top: 16px; right: 18px; background: none; border: none;
   font-size: 20px; color: var(--muted); cursor: pointer; line-height: 1;
 }
 .modal-close:hover { color: var(--ink); }
-.modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
-.modal-tab-btn {
-  background: none; border: none; padding: 10px 4px; margin-right: 20px;
-  font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+
+/* ---------- Paper-stack tabs: three sheets clipped together ---------- */
+.paper-stack-tabs {
+  position: relative;
+  display: flex;
+  /* Tall enough that the paperclip sits fully inside this box rather than
+     poking above it -- a negative top on .paperclip previously relied on
+     this container never clipping overflow, which broke the moment the
+     mobile rule below added overflow-x (overflow-x set on its own silently
+     upgrades overflow-y from visible to auto too, so anything poking past
+     the top edge, like the clip, got clipped for real). */
+  padding-top: 22px;
+  margin-bottom: 0;
 }
-.modal-tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+.paperclip {
+  position: absolute; top: 4px; left: 12px; z-index: 5;
+  width: 18px; height: 18px; color: rgba(24, 24, 27, 0.45);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+.paper-tab {
+  position: relative;
+  background: #F6F4EC;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 16px 9px;
+  margin-right: -1px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  font-family: inherit; cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+/* Each unselected tab sits a little lower and a little more tilted than
+   the one before it, like a fanned stack of index cards -- so all three
+   labels stay visible even though only one sheet is on top. */
+.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 2; }
+.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 1; }
+.paper-tab:hover { color: var(--ink); }
+.paper-tab.active {
+  background: #fff; color: var(--ink);
+  transform: translateY(0) rotate(0deg) !important;
+  z-index: 3;
+  box-shadow: 0 -3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* The active sheet itself -- the "paper" the tab bar is clipped to. */
+.paper-sheet-content {
+  background: #fff;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-radius: 0 10px 10px 10px;
+  margin-top: -1px;
+  padding: 22px 22px 20px;
+  position: relative;
+  z-index: 3;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 150ms ease-in, opacity 100ms ease-in;
+}
+/* Toggled briefly by switchTab(): rotate the sheet edge-on (invisible,
+   since a flat plane viewed exactly side-on has zero width) while the
+   content underneath swaps, then rotate back -- a page-flip using one
+   element rather than two stacked faces. */
+.modal.flipping .paper-sheet-content { transform: rotateY(90deg); opacity: 0; }
+
+/* ---------- Folder opener: the "lid lifts, paper rises out" phase ----------
+   A decorative stand-in shown at the clicked card's own screen position
+   while the real modal stays invisible (see ApplicationModal.js's open
+   effect). Positioned with an inline left/top/width/height matching that
+   card exactly, so there's no visible jump when it appears. */
+.case-opener {
+  position: fixed;
+  perspective: 900px;
+  pointer-events: none;
+}
+.case-opener-body {
+  position: absolute; inset: 0;
+  background: #fff;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-top: none;
+  border-radius: 0 12px 12px 12px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+}
+/* Three sheets, stacked and fanned, hidden behind the flap at rest. Opening
+   moves them up and slightly out from under it -- "paper coming out of the
+   folder" -- staggered a little so they don't rise in perfect lockstep. */
+.case-opener-paper {
+  position: absolute;
+  left: 10%; right: 10%; top: 10%; height: 58%;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 3px 8px 8px 8px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(6%) scale(0.92);
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out;
+}
+.case-opener-paper.p2 { transform: translateY(9%) scale(0.88); }
+.case-opener-paper.p3 { transform: translateY(12%) scale(0.84); }
+.case-opener.opening .case-opener-paper {
+  opacity: 1;
+  transform: translateY(-55%) scale(1.02) rotate(-1deg);
+  transition-delay: 60ms;
+}
+.case-opener.opening .case-opener-paper.p2 {
+  transform: translateY(-46%) scale(0.98) rotate(1deg);
+  transition-delay: 120ms;
+}
+.case-opener.opening .case-opener-paper.p3 {
+  transform: translateY(-38%) scale(0.94) rotate(2deg);
+  transition-delay: 170ms;
+}
+/* The lid: covers the papers at rest (it's simply last in the markup, so it
+   paints on top with no z-index needed), then swings open on its own bottom
+   hinge. Negative rotateX matches the "tipped back, away from the viewer"
+   direction already used for the closed-modal tilt elsewhere in this file. */
+.case-opener-flap {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 48%;
+  background: #FBF9F3;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-bottom: none;
+  border-radius: 4px 12px 0 0;
+  transform-origin: bottom;
+  transform: rotateX(0deg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 420ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.case-opener.opening .case-opener-flap { transform: rotateX(-125deg); }
 
 .mform-row { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
 .mfield { flex: 1; min-width: 140px; }
@@ -741,7 +872,7 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .comm-form select, .comm-form input, .link-row input { min-height: 42px; }
   .card .move-select span { min-height: 40px; padding: 11px 10px; font-size: 12.5px; }
   .match-order button { width: 32px; height: 26px; font-size: 13px; }
-  .modal-tab-btn { padding: 10px 12px; }
+  .paper-tab { padding: 10px 12px; }
   .btn-stamp, .btn-primary, .btn-danger, .btn-secondary-inline { min-height: 42px; }
 }
 
@@ -755,6 +886,19 @@ textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, s
   .filter-scroll-btn { display: none; }
   .ms-panel { width: min(320px, calc(100vw - 32px)); }
   .modal-heading-row { margin-right: 36px; }
+  /* Three fanned tab labels can outrun a narrow phone's width (long labels
+     like "Tailored Resume" and "Communications" together run past ~340px);
+     letting the row scroll sideways is a safety net that holds regardless
+     of label length, rather than depending on font/padding math staying
+     just barely small enough. */
+  /* overflow-y: visible is explicit, not the default: setting only
+     overflow-x makes the browser silently compute overflow-y as auto too
+     (the CSS overflow spec's "visible paired with non-visible" rule),
+     which would clip the paperclip and anything else placed above this
+     row's own edge. */
+  .paper-stack-tabs { overflow-x: auto; overflow-y: visible; scrollbar-width: none; }
+  .paper-stack-tabs::-webkit-scrollbar { display: none; }
+  .paper-tab { flex-shrink: 0; }
   .latex-actions { flex-direction: column; align-items: stretch; }
   .latex-actions button { width: 100%; }
   .output-tab { flex: 1; text-align: center; }
