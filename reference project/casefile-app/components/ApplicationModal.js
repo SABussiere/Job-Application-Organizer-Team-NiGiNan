@@ -16,7 +16,7 @@ import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
 import LocationInput from "@/components/LocationInput";
 import { assembleResumeText } from "@/lib/matching";
-import { dateRange, latexFileName } from "@/lib/latex";
+import { dateRange, latexFileName, renderLatexResume } from "@/lib/latex";
 import { formatDate } from "@/lib/followups";
 import LatexPanel from "@/components/LatexPanel";
 import ResumeSheetPanel from "@/components/ResumeSheetPanel";
@@ -26,14 +26,49 @@ import ResumeSheetPanel from "@/components/ResumeSheetPanel";
  * ordered picks first, then every remaining master module, unchecked, so any
  * of them can be swapped in without leaving the modal.
  */
-function buildRows(masterModules, selectedIds, matchSummary) {
+function applyModuleOverrides(masterModules, overrides = {}) {
+  return masterModules.filter(Boolean).map(module => {
+    const override = overrides?.[module.id];
+    if (!override) return module;
+    return {
+      ...module,
+      content: typeof override.content === "string" ? override.content : module.content,
+      bullets: Array.isArray(override.bullets)
+        ? override.bullets.map(String).filter(Boolean)
+        : module.bullets
+    };
+  });
+}
+
+function moduleOverridesForRows(rows, masterModules) {
+  const masterById = new Map(masterModules.map(module => [module.id, module]));
+  const overrides = {};
+
+  rows.filter(row => row.included).forEach(row => {
+    const original = masterById.get(row.module.id);
+    if (!original) return;
+
+    const originalBullets = JSON.stringify(original.bullets || []);
+    const rowBullets = JSON.stringify(row.module.bullets || []);
+    if ((row.module.content || "") !== (original.content || "") || rowBullets !== originalBullets) {
+      overrides[row.module.id] = {
+        content: row.module.content || "",
+        bullets: Array.isArray(row.module.bullets) ? row.module.bullets : []
+      };
+    }
+  });
+
+  return overrides;
+}
+
+function buildRows(masterModules, selectedIds, matchSummary, overrides = {}) {
   const matchById = new Map((matchSummary || []).map(m => [m.moduleId, m]));
   const byId = new Map(masterModules.map(m => [m.id, m]));
   const ordered = [];
   const seen = new Set();
 
   (selectedIds || []).forEach(id => {
-    const module = byId.get(id);
+    const module = applyModuleOverrides([byId.get(id)], overrides)[0];
     if (!module || seen.has(id)) return;
     seen.add(id);
     ordered.push({ module, included: true, match: matchById.get(id) || null });
@@ -71,6 +106,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
   const [latexError, setLatexError] = useState("");
   const [tailoring, setTailoring] = useState(false);
   const [tailorError, setTailorError] = useState("");
+  const [tailorNotice, setTailorNotice] = useState("");
   const [commType, setCommType] = useState("note");
   const [commDate, setCommDate] = useState(new Date().toISOString().slice(0, 10));
   const [commText, setCommText] = useState("");
@@ -116,7 +152,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
         const initialIds = Array.isArray(data.resumeModuleIds)
           ? data.resumeModuleIds
           : masterModules.map(m => m.id);
-        setRows(buildRows(masterModules, initialIds, null));
+        setRows(buildRows(masterModules, initialIds, null, data.resumeModuleOverrides));
         setForm({
           company: data.company,
           position: data.position,
@@ -318,7 +354,8 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
   async function saveResume() {
     await api.updateApplication(appId, {
       resumeVersion: resumeText,
-      resumeModuleIds: selectedIds
+      resumeModuleIds: selectedIds,
+      resumeModuleOverrides: moduleOverridesForRows(rows, modules)
     });
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1200);
@@ -356,7 +393,11 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
     setLatexLoading(true);
     setLatexError("");
     try {
-      setLatex(await api.renderLatex(ids));
+      const byId = new Map(rows.map(row => [row.module.id, row.module]));
+      setLatex(renderLatexResume(
+        profile,
+        ids.map(id => byId.get(id)).filter(Boolean)
+      ));
     } catch (e) {
       setLatexError(e.message);
     } finally {
@@ -374,16 +415,23 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
     if (!trimmedJobDescription) return;
     setTailoring(true);
     setTailorError("");
+    setTailorNotice("");
     try {
       const result = await api.tailorApplication(appId, trimmedJobDescription);
       setApp(result.application);
       setJobDescription(trimmedJobDescription);
       const ids = result.application.resumeModuleIds || [];
-      const next = buildRows(modules, ids, result.matchSummary);
+      const next = buildRows(modules, ids, result.matchSummary, result.application.resumeModuleOverrides);
       setRows(next);
       setResumeText(result.application.resumeVersion);
+      setOutput("text");
       setLatex("");
-      if (output === "latex") renderLatex(ids);
+      const changed = result.application.tailoredFrom?.changedModules ?? 0;
+      setTailorNotice(
+        changed > 0
+          ? `Groq reworded ${changed} of ${ids.length} included modules.`
+          : "Groq returned wording close to your master resume; try a more detailed job description."
+      );
     } catch (e) {
       setTailorError(e.message);
     } finally {
@@ -593,12 +641,13 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
               />
               <div className="tailor-actions">
                 <button type="button" className="btn-primary" onClick={tailorFromJD} disabled={tailoring || !jobDescription.trim()}>
-                  {tailoring ? "Matching..." : "Generate tailored resume"}
+                  {tailoring ? "Generating..." : "Generate tailored resume"}
                 </button>
                 <button type="button" className="btn-secondary-inline" onClick={resetFromMaster}>
                   Reset to full master
                 </button>
                 {tailorError && <span className="tailor-error">{tailorError}</span>}
+                {tailorNotice && !tailorError && <span className="hint">{tailorNotice}</span>}
               </div>
             </div>
 
@@ -680,6 +729,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [],
                 profile={profile}
                 modules={selectedModules}
                 moduleIds={selectedIds}
+                appId={appId}
                 label={[app.company, app.position].filter(Boolean).join(" — ")}
               />
             )}

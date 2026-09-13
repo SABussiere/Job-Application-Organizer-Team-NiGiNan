@@ -81,8 +81,12 @@ function withApplicationDefaults(app) {
     jobUrl: "",
     followUpDate: "",
     jobDescription: "",
+    resumeModuleOverrides: {},
     tailoredFrom: null,
     ...app,
+    resumeModuleOverrides: app.resumeModuleOverrides && typeof app.resumeModuleOverrides === "object"
+      ? app.resumeModuleOverrides
+      : {},
     communications: Array.isArray(app.communications) ? app.communications : []
   };
 }
@@ -91,6 +95,88 @@ function withApplicationDefaults(app) {
 function orderByIds(modules, ids) {
   const byId = new Map(modules.map(m => [m.id, m]));
   return (ids || []).map(id => byId.get(id)).filter(Boolean);
+}
+
+function applyModuleOverrides(modules, overrides = {}) {
+  if (!overrides || typeof overrides !== "object") return modules;
+
+  return modules.map(module => {
+    const override = overrides[module.id];
+    if (!override || typeof override !== "object") return module;
+
+    return {
+      ...module,
+      content: typeof override.content === "string" ? override.content : module.content,
+      bullets: Array.isArray(override.bullets)
+        ? override.bullets.map(String).filter(Boolean)
+        : module.bullets
+    };
+  });
+}
+
+function overridesFromModules(modules) {
+  return Object.fromEntries(
+    modules.map(module => [
+      module.id,
+      {
+        content: module.content || "",
+        bullets: Array.isArray(module.bullets) ? module.bullets : []
+      }
+    ])
+  );
+}
+
+function comparableModuleText(module) {
+  return [
+    module.content || "",
+    ...(Array.isArray(module.bullets) ? module.bullets : [])
+  ]
+    .join("\n")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+async function generateTailoredModules(jobDescription, modules) {
+  const response = await fetch("/api/resume/tailor", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobDescription, modules })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Groq resume tailoring failed.");
+  }
+
+  const byId = new Map(modules.map(module => [module.id, module]));
+  const tailoredModules = (data.modules || [])
+    .map(override => {
+      const original = byId.get(override.id);
+      if (!original) return null;
+      return {
+        ...original,
+        content: typeof override.content === "string" ? override.content : original.content,
+        bullets: Array.isArray(override.bullets)
+          ? override.bullets.map(String).filter(Boolean)
+          : original.bullets
+      };
+    })
+    .filter(Boolean);
+
+  if (tailoredModules.length === 0) {
+    throw new Error("Groq did not return any tailored resume content.");
+  }
+
+  return {
+    model: data.model,
+    modules: tailoredModules,
+    changedModules: tailoredModules.filter(module => {
+      const original = byId.get(module.id);
+      return original && comparableModuleText(original) !== comparableModuleText(module);
+    }).length,
+    resumeText: assembleResumeText(tailoredModules, { sort: false })
+  };
 }
 
 export const api = {
@@ -125,6 +211,7 @@ export const api = {
         ? data.resumeModuleIds
         : modules.map(m => m.id),
       jobDescription: data.jobDescription || "",
+      resumeModuleOverrides: {},
       tailoredFrom: null,
       communications: [],
       createdAt: new Date().toISOString()
@@ -170,17 +257,24 @@ export const api = {
     }
 
     const { selected } = selectModules(jobDescription, modules);
-    const resumeVersion = assembleResumeText(selected);
-    const selectedIds = selected.map(m => m.id);
+    const selectedForTailoring = selected.length ? selected : modules;
+    const selectedIds = selectedForTailoring.map(m => m.id);
     const chosen = new Set(selectedIds);
+    const tailored = await generateTailoredModules(jobDescription, selectedForTailoring);
+    const resumeVersion = tailored.resumeText;
+    const resumeModuleOverrides = overridesFromModules(tailored.modules);
 
     const application = await api.updateApplication(appId, {
       resumeVersion,
       resumeModuleIds: selectedIds,
+      resumeModuleOverrides,
       jobDescription,
       tailoredFrom: {
         generatedAt: new Date().toISOString(),
-        moduleCount: selected.length,
+        source: "groq",
+        model: tailored.model || "groq",
+        changedModules: tailored.changedModules,
+        moduleCount: selectedForTailoring.length,
         totalModules: modules.length
       }
     });
@@ -194,7 +288,9 @@ export const api = {
         d.module.id,
         {
           moduleId: d.module.id,
-          module: d.module,
+          module: resumeModuleOverrides[d.module.id]
+            ? applyModuleOverrides([d.module], resumeModuleOverrides)[0]
+            : d.module,
           score: d.score,
           alwaysIncluded: !!d.module.alwaysInclude,
           included: chosen.has(d.module.id),
@@ -283,8 +379,11 @@ export const api = {
     const batch = writeBatch(firestore);
     batch.delete(doc(modulesCol(), id));
     affected.forEach(a => {
+      const resumeModuleOverrides = { ...(a.resumeModuleOverrides || {}) };
+      delete resumeModuleOverrides[id];
       batch.update(doc(applicationsCol(), a.id), {
-        resumeModuleIds: a.resumeModuleIds.filter(mid => mid !== id)
+        resumeModuleIds: a.resumeModuleIds.filter(mid => mid !== id),
+        resumeModuleOverrides
       });
     });
     await batch.commit();
@@ -334,6 +433,17 @@ export const api = {
     return renderLatexResume(profile, orderByIds(modules, moduleIds));
   },
 
+  async renderApplicationLatex(id, moduleIds) {
+    const [app, profile, modules] = await Promise.all([
+      api.getApplication(id),
+      api.getResumeProfile(),
+      api.listResumeModules()
+    ]);
+    if (!app) throw new Error("Application not found");
+    const withOverrides = applyModuleOverrides(modules, app.resumeModuleOverrides);
+    return renderLatexResume(profile, orderByIds(withOverrides, moduleIds));
+  },
+
   async getApplicationLatex(id) {
     const [app, profile, modules] = await Promise.all([
       api.getApplication(id),
@@ -342,9 +452,10 @@ export const api = {
     ]);
     if (!app) throw new Error("Application not found");
     const hasSelection = Array.isArray(app.resumeModuleIds);
+    const withOverrides = applyModuleOverrides(modules, app.resumeModuleOverrides);
     return renderLatexResume(
       profile,
-      hasSelection ? orderByIds(modules, app.resumeModuleIds) : modules,
+      hasSelection ? orderByIds(withOverrides, app.resumeModuleIds) : withOverrides,
       { sortByTypeOrder: !hasSelection }
     );
   },
