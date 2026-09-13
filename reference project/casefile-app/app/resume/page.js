@@ -77,7 +77,7 @@ function ModuleCard({ module, onSaved, onDeleted, onReorder, isFirst, isLast }) 
   }
 
   return (
-    <div className="module-card">
+    <div className="module-card folder-panel">
       <div className="module-card-top">
         <select
           className="module-type-select"
@@ -88,7 +88,7 @@ function ModuleCard({ module, onSaved, onDeleted, onReorder, isFirst, isLast }) 
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <span className="module-kicker">→ {SECTION_TITLES[form.type] || "Additional"}</span>
+        <span className="module-kicker">{SECTION_TITLES[form.type] || "Additional"}</span>
         <div className="module-reorder">
           <button disabled={isFirst} onClick={() => onReorder(module.id, "up")} title="Move up">↑</button>
           <button disabled={isLast} onClick={() => onReorder(module.id, "down")} title="Move down">↓</button>

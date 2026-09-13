@@ -38,7 +38,7 @@ export default function ResumeSheetPanel({ profile, modules, moduleIds, label, l
       {loading ? (
         <p className="hint">Loading preview...</p>
       ) : (
-        <div className="sheet-frame">
+        <div className="sheet-frame folder-panel">
           <ResumePreview profile={profile} modules={modules} />
         </div>
       )}
