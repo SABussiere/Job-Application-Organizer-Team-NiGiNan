@@ -12,7 +12,7 @@
   --applied: #3B82F6;
   --interview: #10B981;
   --offer: #F59E0B;
-  --rejected: #F43F5E;
+  --rejected: #DC2626;
 }
 
 * { box-sizing: border-box; }
@@ -91,11 +91,35 @@ a { color: inherit; }
 }
 .tab-link {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  text-decoration: none; color: var(--muted); padding: 4px 10px; flex: 1; text-align: center;
+  text-decoration: none; color: var(--ink); padding: 4px 10px; flex: 1; text-align: center;
 }
-.tab-link.active { color: var(--accent); }
-.tab-icon { font-size: 17px; }
-.tab-label { font-size: 10px; font-weight: 600; }
+.tab-link.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tab-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; line-height: 1;
+  /* Sizes the one nav entry still using an emoji glyph (Calendar has no
+     matching SVG yet) close to the 17px footprint the icon files render at,
+     so it doesn't look tiny next to them. */
+  font-size: 15px;
+}
+.tab-icon img {
+  display: block;
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+}
+.tab-label {
+  font-size: 11.5px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: inherit;
+}
+.tab-link.active .tab-label {
+  font-weight: 700;
+}
 
 @media (max-width: 640px) {
   .desktop-nav { display: none; }
@@ -116,21 +140,41 @@ a { color: inherit; }
 }
 @media (max-width: 640px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #EEF8F4;
+  border: 1px solid rgba(18, 85, 68, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(18, 85, 68, 0.07);
   border-radius: 10px;
   padding: 16px 18px;
 }
-.stat-card .num { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-.stat-card .label { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.stat-card .num {
+  color: #124F42;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.stat-card .label {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.stat-card.alert {
+  background: #FEE2E2;
+  border-color: rgba(220, 38, 38, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.06);
+}
+.stat-card.alert .num,
+.stat-card.alert .label {
+  color: #B91C1C;
+}
 
 /* ---------- Board ---------- */
 .board-toolbar {
   display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
 }
-.board-toolbar > .board-filters { flex: 1; min-width: 280px; }
-.board-toolbar > .btn-stamp { flex-shrink: 0; }
+.board-toolbar-main { flex: 1; min-width: 0; }
+.board-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 .sync-toast {
   position: fixed;
   left: 50%;
@@ -168,7 +212,7 @@ a { color: inherit; }
 }
 .column-header {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 12px; padding: 0 2px;
+  margin-bottom: 18px; padding: 0 2px;
 }
 .column-header::before {
   content: "";
@@ -180,16 +224,59 @@ a { color: inherit; }
 .column-header .count { font-size: 12px; color: var(--muted); margin-left: auto; }
 .column.drag-over { background: var(--accent-soft); outline: 1.5px dashed var(--accent); outline-offset: 4px; border-radius: 12px; }
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  cursor: grab;
+/* ---------- Shared "case file" folder look ----------
+   A squared top-left corner plus a small tab above it, like a manila folder.
+   .card is the kanban card's own version, tab width scaled to its own small
+   size; .folder-panel is the same material for larger containers (resume
+   modules, the resume/PDF preview, the map) -- a folder tab doesn't get
+   wider just because the page inside it is bigger, so it keeps a fixed
+   width instead of scaling with the container. */
+.card,
+.folder-panel {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-top: none;
+  border-radius: 0 12px 12px 12px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 8px 18px rgba(15, 23, 42, 0.04);
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.card:hover { border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card { padding: 18px 16px 14px; margin: 0 0 18px; cursor: grab; }
+.card::before,
+.folder-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -12px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.card::before { width: 48%; min-width: 110px; }
+.folder-panel::before { width: 130px; max-width: 40%; }
+.card::after,
+.folder-panel::after {
+  content: "";
+  position: absolute;
+  inset: 8px 8px 8px 8px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(245,247,246,0.92));
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
+  z-index: 0;
+}
+.card > *,
+.folder-panel > * {
+  position: relative;
+  z-index: 1;
+}
+.card:hover {
+  border-color: rgba(18, 85, 68, 0.28);
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 10px 20px rgba(15, 23, 42, 0.06);
+}
 .card-open {
   display: block; width: 100%; text-align: left; padding: 0;
   background: none; border: none; font: inherit; color: inherit; cursor: pointer;
@@ -197,7 +284,10 @@ a { color: inherit; }
 .card .position { display: block; font-weight: 600; font-size: 14px; }
 .card .company { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-.card .job-type-tag {
+/* Not scoped to .card: PlaceCaseList (the map's and calendar's case detail
+   list) uses this same class outside any .card, and needs the identical
+   pill styling rather than falling back to bare text. */
+.job-type-tag {
   font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
   background: var(--accent-soft); color: var(--accent);
 }
@@ -242,6 +332,7 @@ a { color: inherit; }
 @media (max-width: 640px) { .panel { padding: 18px 16px; } }
 .panel h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
 .hint { color: var(--muted); font-size: 13px; margin: 0 0 16px; max-width: 65ch; line-height: 1.5; }
+.hint-wide { max-width: none; }
 
 textarea.resume-input {
   width: 100%; min-height: 340px; padding: 14px;
@@ -249,7 +340,9 @@ textarea.resume-input {
   font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.6;
   resize: vertical; background: var(--bg); color: var(--ink);
 }
-textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.saved-note { color: var(--interview); font-size: 12.5px; font-weight: 500; align-self: center; }
+.error-note { color: var(--rejected); font-size: 12.5px; font-weight: 500; align-self: center; }
 
 /* ---------- Buttons ---------- */
 .btn-stamp, .btn-primary {
@@ -262,24 +355,22 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
 }
 .btn-danger:hover { background: #FEF2F3; }
+.module-actions .btn-danger {
+  background: var(--rejected);
+  color: #fff;
+  border: none;
+}
+.module-actions .btn-danger:hover { background: #B91C1C; }
 .btn-secondary-inline {
   background: var(--surface); border: 1px solid var(--border); color: var(--ink);
   padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
 }
 .btn-secondary-inline:hover { border-color: var(--border-strong); }
 
-@media (max-width: 640px) {
-  .board-toolbar { justify-content: stretch; }
-  .board-toolbar .btn-stamp { width: 100%; padding: 13px; }
-}
-
 /* ---------- Resume modules ---------- */
-.module-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.module-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 16px; }
 .module-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
+  padding: 20px 16px 16px;
 }
 .module-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .module-type-select {
@@ -316,6 +407,17 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 }
 
 /* ---------- Tailoring box ---------- */
+.tailor-panel {
+  background: var(--accent-soft);
+  border: 1px solid #cfe3dd;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 18px 0;
+}
+.tailor-panel h3 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
 .tailor-box {
   background: var(--accent-soft);
   border: 1px solid #cfe3dd;
@@ -344,24 +446,161 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(24, 24, 27, 0.4); z-index: 50;
   display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto;
+  /* Depth for the case modal's open/close tilt and the paper flip between
+     tabs -- both use 3D transforms on descendants of .modal. */
+  perspective: 1600px;
 }
 .modal {
   background: var(--surface); border-radius: 16px; width: 100%; max-width: 680px;
   padding: 28px 30px 26px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.14);
   border: 1px solid var(--border);
+  perspective: 1200px;
+  will-change: transform, opacity;
 }
+/* Opening/closing transforms are set inline by ApplicationModal.js (a FLIP
+   animation needs the actual measured rect, which CSS alone can't know),
+   so these classes exist for state/debugging rather than carrying rules
+   of their own. */
+.modal.closing { pointer-events: none; }
 .modal-close {
   position: absolute; top: 16px; right: 18px; background: none; border: none;
   font-size: 20px; color: var(--muted); cursor: pointer; line-height: 1;
 }
 .modal-close:hover { color: var(--ink); }
-.modal-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
-.modal-tab-btn {
-  background: none; border: none; padding: 10px 4px; margin-right: 20px;
-  font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
+
+/* ---------- Paper-stack tabs: three sheets clipped together ---------- */
+.paper-stack-tabs {
+  position: relative;
+  display: flex;
+  /* Tall enough that the paperclip sits fully inside this box rather than
+     poking above it -- a negative top on .paperclip previously relied on
+     this container never clipping overflow, which broke the moment the
+     mobile rule below added overflow-x (overflow-x set on its own silently
+     upgrades overflow-y from visible to auto too, so anything poking past
+     the top edge, like the clip, got clipped for real). */
+  padding-top: 22px;
+  margin-bottom: 0;
 }
-.modal-tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+.paperclip {
+  position: absolute; top: 0; left: 12px; z-index: 5;
+  width: 18px; height: 18px; color: rgba(24, 24, 27, 0.45);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+.paper-tab {
+  position: relative;
+  background: #F6F4EC;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 16px 9px;
+  margin-right: -1px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  font-family: inherit; cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+/* Each unselected tab sits a little lower and a little more tilted than
+   the one before it, like a fanned stack of index cards -- so every label
+   stays visible even though only one sheet is on top. Written to cover more
+   than three tabs (a fourth, Interview Prep, was added since this was
+   first built) rather than hardcoding exactly three. */
+.paper-tab:nth-of-type(2) { transform: translateY(4px) rotate(0.6deg); z-index: 3; }
+.paper-tab:nth-of-type(3) { transform: translateY(8px) rotate(1.2deg); z-index: 2; }
+.paper-tab:nth-of-type(4) { transform: translateY(12px) rotate(1.8deg); z-index: 1; }
+.paper-tab:hover { color: var(--ink); }
+.paper-tab.active {
+  background: #fff; color: var(--ink);
+  transform: translateY(0) rotate(0deg) !important;
+  /* Higher than any fanned tab's own z-index (they go up to 3 for a
+     four-tab stack), not equal to the highest one -- ties would fall back
+     to DOM order, which happens to still work today but only by luck. */
+  z-index: 10;
+  box-shadow: 0 -3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* The active sheet itself -- the "paper" the tab bar is clipped to. */
+.paper-sheet-content {
+  background: #fff;
+  border: 1px solid rgba(18, 85, 68, 0.16);
+  border-radius: 0 10px 10px 10px;
+  margin-top: -1px;
+  padding: 22px 22px 20px;
+  position: relative;
+  z-index: 3;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 150ms ease-in, opacity 100ms ease-in;
+}
+/* Toggled briefly by switchTab(): rotate the sheet edge-on (invisible,
+   since a flat plane viewed exactly side-on has zero width) while the
+   content underneath swaps, then rotate back -- a page-flip using one
+   element rather than two stacked faces. */
+.modal.flipping .paper-sheet-content { transform: rotateY(90deg); opacity: 0; }
+
+/* ---------- Folder opener: the "lid lifts, paper rises out" phase ----------
+   A decorative stand-in shown at the clicked card's own screen position
+   while the real modal stays invisible (see ApplicationModal.js's open
+   effect). Positioned with an inline left/top/width/height matching that
+   card exactly, so there's no visible jump when it appears. */
+.case-opener {
+  position: fixed;
+  perspective: 900px;
+  pointer-events: none;
+}
+.case-opener-body {
+  position: absolute; inset: 0;
+  background: #fff;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-top: none;
+  border-radius: 0 12px 12px 12px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+}
+/* Three sheets, stacked and fanned, hidden behind the flap at rest. Opening
+   moves them up and slightly out from under it -- "paper coming out of the
+   folder" -- staggered a little so they don't rise in perfect lockstep. */
+.case-opener-paper {
+  position: absolute;
+  left: 10%; right: 10%; top: 10%; height: 58%;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 3px 8px 8px 8px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(6%) scale(0.92);
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out;
+}
+.case-opener-paper.p2 { transform: translateY(9%) scale(0.88); }
+.case-opener-paper.p3 { transform: translateY(12%) scale(0.84); }
+.case-opener.opening .case-opener-paper {
+  opacity: 1;
+  transform: translateY(-55%) scale(1.02) rotate(-1deg);
+  transition-delay: 60ms;
+}
+.case-opener.opening .case-opener-paper.p2 {
+  transform: translateY(-46%) scale(0.98) rotate(1deg);
+  transition-delay: 120ms;
+}
+.case-opener.opening .case-opener-paper.p3 {
+  transform: translateY(-38%) scale(0.94) rotate(2deg);
+  transition-delay: 170ms;
+}
+/* The lid: covers the papers at rest (it's simply last in the markup, so it
+   paints on top with no z-index needed), then swings open on its own bottom
+   hinge. Negative rotateX matches the "tipped back, away from the viewer"
+   direction already used for the closed-modal tilt elsewhere in this file. */
+.case-opener-flap {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 48%;
+  background: #FBF9F3;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-bottom: none;
+  border-radius: 4px 12px 0 0;
+  transform-origin: bottom;
+  transform: rotateX(0deg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 420ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.case-opener.opening .case-opener-flap { transform: rotateX(-125deg); }
 
 .mform-row { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
 .mfield { flex: 1; min-width: 140px; }
@@ -371,6 +610,16 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   font-family: 'Inter', sans-serif; font-size: 13.5px; background: var(--bg); color: var(--ink);
 }
 .modal-actions { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; flex-wrap: wrap; }
+
+.prep-q-list {
+  list-style: decimal; margin: 18px 0 0; padding-left: 22px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.prep-q-list li {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 11px 14px; font-size: 13.5px; line-height: 1.5;
+}
+.prep-q-list li::marker { color: var(--accent); font-weight: 600; }
 
 .comm-form { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .comm-form select, .comm-form input[type="date"] { padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); }
@@ -493,8 +742,18 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 
 @media (max-width: 640px) {
   .board-toolbar { flex-direction: column; align-items: stretch; }
-  .board-toolbar .btn-stamp { width: 100%; }
-  .filter-row-chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .board-toolbar-main { width: 100%; }
+  .board-actions { width: 100%; justify-content: flex-start; }
+  /* Buttons keep their natural, content-sized width and sit side by side,
+     the same as on desktop -- they only drop to their own line once two of
+     them genuinely don't fit next to each other. */
+  .board-actions .btn-stamp,
+  .board-actions .btn-secondary-inline { flex: 0 0 auto; }
+  /* overflow-y: visible for the same reason as .filter-row-main above: these
+     are plain buttons today with nothing that overflows vertically, but
+     leaving overflow-y to silently upgrade to auto is exactly the mistake
+     that broke two other things already. */
+  .filter-row-chips { overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 4px; }
   .filter-chip { flex-shrink: 0; }
   .link-row { flex-wrap: wrap; }
   .link-row input { flex-basis: 100%; }
@@ -503,7 +762,48 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 
 /* ---------- Board filter block ---------- */
 .board-filters { display: flex; flex-direction: column; gap: 10px; }
-.filter-row-main { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* A horizontally scrolling strip rather than wrapping to a second line,
+   which used to shove the board down whenever a lot of filters were
+   active. The arrow buttons (hidden once there's nothing further that way)
+   give a mouse a click target since only touch/trackpad can swipe. */
+.filter-carousel { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.filter-row-main {
+  display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
+  overflow-x: auto;
+  /* Explicit, not the default: setting only overflow-x silently upgrades
+     overflow-y from visible to auto too (the CSS overflow spec's "visible
+     paired with non-visible" rule -- the same thing that clipped the
+     paperclip once already), which clips the Company/Position/Location
+     dropdown panels open below this row, since they're taller than the row
+     itself and would otherwise get cut down to nothing. */
+  overflow-y: visible;
+  scroll-snap-type: x proximity; scroll-padding-inline: 4px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; min-width: 0;
+}
+.filter-row-main::-webkit-scrollbar { display: none; }
+/* The edge-fade hint used to be a mask-image on .filter-row-main itself,
+   but a mask (like filter/clip-path) clips the *entire* rendered subtree
+   to the element's box no matter what overflow says -- so it was cutting
+   off the Company/Position/Location dropdown panels the same way the
+   overflow bug above did, just via a different mechanism. Painting the
+   fade as pointer-events:none overlays on the non-scrolling wrapper
+   instead keeps the visual hint without clipping anything inside the row. */
+.filter-carousel::before,
+.filter-carousel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 16px;
+  pointer-events: none; z-index: 1;
+}
+.filter-carousel::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+.filter-carousel::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+.filter-row-main > * { flex-shrink: 0; scroll-snap-align: start; }
+.filter-scroll-btn {
+  flex-shrink: 0; z-index: 2; width: 28px; height: 28px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+  color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer;
+}
+.filter-scroll-btn:hover { border-color: var(--border-strong); color: var(--ink); }
 
 /* Multi-select dropdown (company / position / location) */
 .ms-wrap { position: relative; }
@@ -568,7 +868,12 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .active-chip-x { font-size: 14px; line-height: 1; }
 .filter-count { font-size: 12.5px; color: var(--muted); }
 
-.filter-row-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-row-chips {
+  display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+}
+.filter-chip { flex-shrink: 0; }
 
 .filter-row-advanced {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -594,12 +899,16 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .preset-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 .filter-summary {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
   font-size: 12.5px; color: var(--muted);
 }
+.active-chip { flex-shrink: 0; }
+.filter-count { white-space: nowrap; flex-shrink: 0; }
 .btn-link {
   background: none; border: none; padding: 0; font: inherit; font-size: 12.5px;
-  color: var(--accent); cursor: pointer; text-decoration: underline;
+  color: var(--accent); cursor: pointer; text-decoration: underline; white-space: nowrap; flex-shrink: 0;
 }
 
 /* ---------- Modal heading (create + edit) ---------- */
@@ -615,7 +924,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .comm-form select, .comm-form input, .link-row input { min-height: 42px; }
   .card .move-select span { min-height: 40px; padding: 11px 10px; font-size: 12.5px; }
   .match-order button { width: 32px; height: 26px; font-size: 13px; }
-  .modal-tab-btn { padding: 10px 12px; }
+  .paper-tab { padding: 10px 12px; }
   .btn-stamp, .btn-primary, .btn-danger, .btn-secondary-inline { min-height: 42px; }
 }
 
@@ -623,12 +932,25 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .board-toolbar { gap: 10px; }
   .board-toolbar > .board-filters { min-width: 0; width: 100%; }
   .filter-row-advanced { grid-template-columns: 1fr; }
-  .filter-row-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .ms-wrap, .req-field { min-width: 0; }
-  .ms-button { max-width: none; width: 100%; }
-  .req-field input { width: 100%; }
+  .ms-wrap, .req-field { flex-shrink: 0; }
+  .ms-button { max-width: 168px; }
+  .req-field input { width: 140px; }
+  .filter-scroll-btn { display: none; }
   .ms-panel { width: min(320px, calc(100vw - 32px)); }
   .modal-heading-row { margin-right: 36px; }
+  /* Three fanned tab labels can outrun a narrow phone's width (long labels
+     like "Tailored Resume" and "Communications" together run past ~340px);
+     letting the row scroll sideways is a safety net that holds regardless
+     of label length, rather than depending on font/padding math staying
+     just barely small enough. */
+  /* overflow-y: visible is explicit, not the default: setting only
+     overflow-x makes the browser silently compute overflow-y as auto too
+     (the CSS overflow spec's "visible paired with non-visible" rule),
+     which would clip the paperclip and anything else placed above this
+     row's own edge. */
+  .paper-stack-tabs { overflow-x: auto; overflow-y: visible; scrollbar-width: none; }
+  .paper-stack-tabs::-webkit-scrollbar { display: none; }
+  .paper-tab { flex-shrink: 0; }
   .latex-actions { flex-direction: column; align-items: stretch; }
   .latex-actions button { width: 100%; }
   .output-tab { flex: 1; text-align: center; }
@@ -638,8 +960,8 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 /* ---------- On-page resume sheet (print to PDF) ---------- */
 .sheet-panel { margin-top: 4px; }
 .sheet-frame {
-  background: #7A7A7E; padding: 18px; border-radius: 10px;
-  overflow-x: auto; margin-top: 12px;
+  padding: 18px; overflow: auto; max-height: 560px; margin-top: 20px;
+  scrollbar-width: thin;
 }
 
 /* 8.5in wide with 0.5in margins, matching the LaTeX template's geometry.
@@ -647,6 +969,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .resume-sheet {
   width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.5in;
   background: #fff; color: #000; box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.08);
   font-family: "Latin Modern Roman", "Computer Modern Serif", Georgia, "Times New Roman", serif;
   font-size: 10.5pt; line-height: 1.25;
 }
@@ -680,7 +1003,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 @media (max-width: 900px) {
   /* Scale the whole sheet down rather than reflowing it, so the phone
      preview still shows real page proportions instead of a fake layout. */
-  .sheet-frame { padding: 10px; height: calc(11in * 0.46 + 20px); overflow: hidden; }
+  .sheet-frame { padding: 10px; max-height: calc(11in * 0.46 + 20px); overflow: auto; }
   .sheet-frame .resume-sheet,
   .print-stage .resume-sheet { transform: scale(0.46); transform-origin: top left; margin: 0; }
   .print-stage { padding: 12px; height: calc(11in * 0.46 + 24px); min-height: 0; overflow: hidden; }
@@ -713,31 +1036,106 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .rs-section, .rs-entry { break-inside: avoid; }
 }
 
+.resume-panel { width: 100%; margin: 0 auto; }
+
 /* ---------- Email review queue ---------- */
+.review-panel { width: 100%; margin: 0 auto; }
 .review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-.review-count { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
-.review-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.review-item {
-  background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--stage-color, var(--applied));
-  border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+.review-group {
+  margin-top: 18px;
+  padding: 10px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.42);
 }
-.review-source { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-count { font-size: 12.5px; color: var(--muted); margin: 0; font-weight: 600; }
+.review-list { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 24px; }
+.review-item {
+  position: relative;
+  z-index: 1;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.28);
+  border-top: none;
+  border-radius: 0 14px 14px 14px;
+  padding: 20px 18px 16px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+.review-item.stage-menu-open { z-index: 3; }
+
+.review-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -12px;
+  width: 42%;
+  min-width: 110px;
+  height: 14px;
+  background: var(--stage-color, var(--accent));
+  border: 1px solid var(--stage-color, var(--accent));
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+}
+.review-item::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 247, 246, 0.92));
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  z-index: 0;
+}
+.review-item > * {
+  position: relative;
+  z-index: 1;
+}
+.review-source { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .review-confidence {
   font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
   background: #FEF6E7; color: #9A6400;
 }
-.review-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+.review-fields { position: relative; z-index: 2; display: flex; gap: 10px; flex-wrap: wrap; }
 .review-field { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 5px; }
+.review-stage-field { position: relative; z-index: 2 !important; }
 .review-field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+.review-stage-label { display: inline-flex; align-items: center; gap: 5px; }
+.review-stage-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .review-field input, .review-field select {
   padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px;
   font-size: 13px; font-family: inherit; background: var(--surface); color: var(--ink);
 }
-.review-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.review-stage-select { position: relative; }
+.review-stage-trigger {
+  width: 100%; display: flex; align-items: center; gap: 7px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--surface);
+  color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.review-stage-trigger:hover { border-color: var(--border-strong); }
+.review-stage-chevron { margin-left: auto; color: var(--muted); font-size: 12px; }
+.review-stage-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 10;
+  display: flex; flex-direction: column; padding: 4px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+.review-stage-option {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px;
+  border: none; border-radius: 5px; background: transparent; color: var(--ink);
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.review-stage-option:hover { background: var(--bg); }
+.review-stage-option.selected { background: var(--accent-soft); color: var(--accent); }
+.review-actions { position: relative; z-index: 1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.review-actions .btn-danger {
+  background: var(--rejected);
+  color: #fff;
+  border: none;
+}
+.review-actions .btn-danger:hover { background: #B91C1C; }
 
 @media (max-width: 640px) {
   .review-header { flex-direction: column; align-items: stretch; }
   .review-fields { flex-direction: column; }
+  .review-stage-field { width: 100%; max-width: none !important; }
   .review-actions { flex-direction: column-reverse; }
   .review-actions button { width: 100%; }
 }
@@ -761,7 +1159,6 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .suggest-option.highlight { background: var(--accent-soft); color: var(--accent); }
 .field-note { font-size: 11px; color: var(--muted); margin: 5px 0 0; line-height: 1.4; }
 
-<<<<<<< HEAD
 /* ---------- Verified location picker ---------- */
 .loc-wrap { position: relative; }
 .loc-wrap input {
@@ -822,8 +1219,9 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 }
 .loc-unknown:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Neutral tag for the fixed-vocabulary fields on a card. */
-.card .plain-tag {
+/* Neutral tag for the fixed-vocabulary fields (employment / on-site-remote).
+   Not scoped to .card for the same reason as .job-type-tag above. */
+.plain-tag {
   font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
   background: var(--bg); border: 1px solid var(--border); color: var(--muted);
 }
@@ -847,14 +1245,13 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 
 .map-layout {
   display: grid; grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 18px; margin-top: 16px; align-items: start;
+  gap: 18px; margin-top: 24px; align-items: start;
 }
 
-.map-stage { position: relative; width: 100%; }
+.map-stage { position: relative; width: 100%; padding: 14px; }
 .map-stage.globe { max-width: 620px; margin: 0 auto; }
 .world-map {
   width: 100%; height: auto; display: block; touch-action: none; cursor: grab;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
 }
 .world-map:active { cursor: grabbing; }
 .world-map.globe { width: 100%; }
@@ -867,6 +1264,12 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 .map-country.has-places { cursor: pointer; }
 .map-country.has-places:hover { stroke: var(--ink); stroke-width: 1; }
 .map-country.selected { stroke: var(--ink); stroke-width: 1.5; }
+/* State/province borders read as a finer texture than country borders, so
+   the map doesn't look the same at both scales; interaction states (hover,
+   selected) stay as visible as a country's so a click target is never hard
+   to see. */
+.map-country.is-subdivision { stroke-width: 0.25; }
+.map-country.is-subdivision.has-data { stroke-width: 0.45; }
 
 .map-pin { cursor: pointer; }
 /* Invisible but hit-testable: a painted fill at zero opacity still receives
@@ -882,7 +1285,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 }
 
 .map-controls {
-  position: absolute; top: 10px; right: 10px; z-index: 5;
+  position: absolute; top: 24px; right: 24px; z-index: 5;
   display: flex; gap: 4px;
 }
 .map-controls button {
@@ -934,6 +1337,7 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   text-transform: uppercase; letter-spacing: 0.04em; padding-top: 1px;
 }
 .pc-value { flex: 1; min-width: 0; color: var(--ink); word-break: break-word; }
+.pc-value-empty { color: var(--muted); font-style: italic; }
 .pc-notes {
   margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--border);
   font-size: 12px; color: var(--muted); line-height: 1.5;
@@ -998,6 +1402,98 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
   .map-switches { flex-direction: column; gap: 8px; }
   .pc-list { max-height: none; }
   .pc-label { flex-basis: 70px; }
+}
+
+/* ---------- Calendar tab ---------- */
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-month-label {
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+  min-width: 132px; text-align: center;
+}
+.cal-panel { padding: 18px; }
+
+/* Month/year picker trigger + popover -- picking the year first, then the
+   month, rather than only stepping one month at a time. */
+.cal-picker-wrap { position: relative; }
+.cal-month-trigger {
+  font-family: inherit; background: none; border: 1px solid transparent;
+  border-radius: 7px; padding: 6px 8px; cursor: pointer;
+}
+.cal-month-trigger:hover { border-color: var(--border); }
+.cal-month-trigger.open { border-color: var(--accent); color: var(--accent); }
+
+.cal-picker-panel {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%);
+  width: 260px; max-width: 80vw; padding: 10px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.14);
+}
+.cal-picker-head {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 8px;
+}
+.cal-picker-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.cal-picker-cell {
+  padding: 8px 4px; font-size: 12.5px; font-family: inherit;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--ink); cursor: pointer; text-align: center;
+}
+.cal-picker-cell:hover { border-color: var(--border-strong); }
+.cal-picker-cell.current { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 4px; margin-bottom: 6px;
+}
+.cal-weekdays span {
+  text-align: center; font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(60px, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 6px 6px 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); font: inherit; color: inherit;
+  cursor: pointer; text-align: left; min-height: 58px;
+}
+.cal-day:hover { border-color: var(--border-strong); }
+.cal-day.outside { opacity: 0.4; }
+.cal-day.today { border-color: var(--accent); }
+.cal-day.today .cal-day-num { color: var(--accent); font-weight: 700; }
+.cal-day.selected { background: var(--accent-soft); border-color: var(--accent); }
+.cal-day-num { font-size: 12.5px; }
+
+.cal-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; }
+.cal-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.cal-dot-more { font-size: 9.5px; color: var(--muted); font-weight: 600; }
+
+.cal-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--muted);
+}
+.cal-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* The follow-up filter chip shows all three urgency colours stacked
+   tightly, rather than a single dot that would only ever match some of
+   what it's filtering. */
+.cal-kind-swatch-multi { display: inline-flex; gap: 1px; }
+.cal-kind-swatch-multi .map-legend-dot { width: 6px; height: 6px; }
+
+@media (max-width: 640px) {
+  .cal-nav { flex-wrap: wrap; justify-content: center; }
+  .cal-nav button { min-height: 40px; }
+  .cal-grid { grid-auto-rows: minmax(46px, 1fr); gap: 3px; }
+  .cal-day { padding: 4px; min-height: 42px; }
+  .cal-day-num { font-size: 11px; }
+  .cal-weekdays span { font-size: 10px; }
 }
 
 /* ---------- Auth splash screen ---------- */

@@ -4,12 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
+// Icons are SVG files under public/icons, except Calendar: no matching icon
+// has been made for it yet, so it falls back to an emoji rather than a
+// broken <img>. isIconImage() below is what makes that fallback work.
 const LINKS = [
-  { href: "/", label: "Case Board", icon: "🗂" },
-  { href: "/resume", label: "Master Resume", icon: "📄" },
-  { href: "/map", label: "Map", icon: "🌍" },
-  { href: "/review", label: "Email Review", icon: "📥" }
+  { href: "/", label: "Cases", icon: "/icons/case-board-icon.svg" },
+  { href: "/resume", label: "Master Resume", icon: "/icons/master-resume-icon.svg" },
+  { href: "/map", label: "Map", icon: "/icons/map-icon.svg" },
+  { href: "/calendar", label: "Calendar", icon: "🗓" },
+  { href: "/review", label: "Email Review", icon: "/icons/email-review-icon.svg" }
 ];
+
+function isIconImage(icon) {
+  return icon.startsWith("/");
+}
 
 export default function Nav() {
   const pathname = usePathname();
@@ -50,7 +58,9 @@ export default function Nav() {
             href={l.href}
             className={`tab-link ${pathname === l.href ? "active" : ""}`}
           >
-            <span className="tab-icon">{l.icon}</span>
+            <span className="tab-icon" aria-hidden="true">
+              {isIconImage(l.icon) ? <img src={l.icon} alt="" /> : l.icon}
+            </span>
             <span className="tab-label">{l.label}</span>
           </Link>
         ))}

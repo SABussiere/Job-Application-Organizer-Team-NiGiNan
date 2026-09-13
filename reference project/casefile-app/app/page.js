@@ -14,6 +14,10 @@ export default function BoardPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
+  // The clicked card's own on-screen rectangle, so the modal's opening
+  // animation can grow out of that exact folder instead of just fading in
+  // at the centre of the screen.
+  const [openOrigin, setOpenOrigin] = useState(null);
   const [creating, setCreating] = useState(false);
   const [dragOverStage, setDragOverStage] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -33,7 +37,23 @@ export default function BoardPage() {
     });
   }, []);
 
+  const setAppStatus = useCallback((id, nextStatus) => {
+    setApps(prev => prev.map(app =>
+      app.id === id ? { ...app, status: nextStatus } : app
+    ));
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!syncMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setSyncMessage("");
+    }, 4000);
+
+    return () => clearTimeout(timeoutId);
+  }, [syncMessage]);
 
   useEffect(() => {
     fetch("/api/auth/google/status")
@@ -53,14 +73,32 @@ export default function BoardPage() {
     setDragOverStage(null);
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
-    await api.updateApplication(id, { status: stage });
-    load();
+
+    const prevStatus = apps.find(app => app.id === id)?.status;
+    setAppStatus(id, stage);
+
+    try {
+      await api.updateApplication(id, { status: stage });
+    } catch (err) {
+      if (prevStatus) {
+        setAppStatus(id, prevStatus);
+      }
+    }
   }
 
   async function moveApp(id, stage) {
     if (!stage) return;
-    await api.updateApplication(id, { status: stage });
-    load();
+
+    const prevStatus = apps.find(app => app.id === id)?.status;
+    setAppStatus(id, stage);
+
+    try {
+      await api.updateApplication(id, { status: stage });
+    } catch (err) {
+      if (prevStatus) {
+        setAppStatus(id, prevStatus);
+      }
+    }
   }
 
   async function syncGmail() {
@@ -89,12 +127,22 @@ export default function BoardPage() {
   async function disconnectGmail() {
     await fetch("/api/auth/google", { method: "DELETE" });
     setGmailConnected(false);
-    setSyncMessage("Gmail disconnected — Sync Gmail will prompt you to connect a new account.");
+    setSyncMessage("Gmail disconnected — Scan Gmail will prompt you to connect a new account.");
   }
 
   function handleCreated() {
     setCreating(false);
     load();
+  }
+
+  function openCard(id, rect) {
+    setOpenOrigin(rect || null);
+    setOpenId(id);
+  }
+
+  function closeCard() {
+    setOpenId(null);
+    setOpenOrigin(null);
   }
 
   return (
@@ -119,23 +167,27 @@ export default function BoardPage() {
       )}
 
       <div className="board-toolbar">
-        <BoardFilters
-          apps={apps}
-          filters={filters}
-          onChange={setFilters}
-          today={today}
-          resultCount={visible.length}
-        />
-        <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
-        <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Scanning..." : "📥 Scan Gmail"}
-        </button>
-
-        {gmailConnected && (
-          <button className="btn-secondary-inline" onClick={disconnectGmail}>
-            Disconnect Gmail
+        <div className="board-toolbar-main">
+          <BoardFilters
+            apps={apps}
+            filters={filters}
+            onChange={setFilters}
+            today={today}
+            resultCount={visible.length}
+          />
+        </div>
+        <div className="board-actions">
+          <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
+          <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
+            {syncing ? "Scanning..." : "Scan Gmail"}
           </button>
-        )}
+
+          {gmailConnected && (
+            <button className="btn-secondary-inline" onClick={disconnectGmail}>
+              Disconnect Gmail
+            </button>
+          )}
+        </div>
       </div>
 
       {syncMessage && (
@@ -176,7 +228,7 @@ export default function BoardPage() {
                       key={app.id}
                       app={app}
                       today={today}
-                      onOpen={setOpenId}
+                      onOpen={openCard}
                       onMove={moveApp}
                       onDragStart={(e, id) => e.dataTransfer.setData("text/plain", id)}
                     />
@@ -205,10 +257,15 @@ export default function BoardPage() {
         <ApplicationModal
           appId={openId}
           apps={apps}
-          onClose={() => setOpenId(null)}
+          origin={openOrigin}
+          onClose={closeCard}
           onChanged={load}
         />
       )}
     </div>
   );
+}
+
+function applyStatusUpdate(id, status) {
+  setApps(apps => apps.map(app => app.id === id ? { ...app, status } : app));
 }

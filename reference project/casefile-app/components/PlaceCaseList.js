@@ -7,12 +7,12 @@ function known(value) {
   return value && value !== UNKNOWN_TYPE;
 }
 
-function Row({ label, children }) {
+function Row({ label, empty, children }) {
   if (!children) return null;
   return (
     <div className="pc-row">
       <span className="pc-label">{label}</span>
-      <span className="pc-value">{children}</span>
+      <span className={`pc-value ${empty ? "pc-value-empty" : ""}`}>{children}</span>
     </div>
   );
 }
@@ -50,12 +50,12 @@ export default function PlaceCaseList({ place, today, onOpen }) {
             <div className="pc-rows">
               <Row label="Applied">{formatDate(app.dateApplied)}</Row>
               <Row label="Req ID">{app.requisitionId}</Row>
-              <Row label="Follow-up">
+              <Row label="Follow-up" empty={bucket === "none"}>
                 {bucket === "none"
                   ? "none set"
                   : `${followUpLabel(app, today)} (${formatDate(app.followUpDate)})`}
               </Row>
-              <Row label="Contact log">
+              <Row label="Contact log" empty={!app.communications?.length}>
                 {app.communications?.length
                   ? `${app.communications.length} ${app.communications.length === 1 ? "entry" : "entries"}`
                   : "nothing logged"}

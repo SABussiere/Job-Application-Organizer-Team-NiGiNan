@@ -183,7 +183,9 @@ Both are plain SVG over the same data.
   remote, requisition ID, follow-up status, contact-log count, notes and a
   link to the posting. Editing stays behind an explicit **Open case** button
 - The stage chips filter which cases are plotted at all
-- Drag to rotate the globe or pan the flat map, and zoom with + and −
+- Drag to rotate the globe or pan the flat map, and zoom with + / − or the
+  scroll wheel (a trackpad pinch, which the browser reports as a large
+  wheel delta, zooms further per gesture than a single mouse-wheel notch)
 
 ### Why teal, and why point-in-polygon
 
@@ -202,6 +204,52 @@ because the gazetteer and the basemap disagree on names. The gazetteer says
 "United States" and the basemap says "United States of America", so matching
 on names would have silently dropped every US application from the heat map.
 
+### State and province detail
+
+`world-atlas` has no data below the country level, for anywhere. Getting a
+finer grain than "the whole country" means a second dataset per country —
+there is no small, reliably-projected file covering every country's states
+and provinces at once; a global one is many megabytes, an order of magnitude
+past everything else this map bundles — so detail is added one country at a
+time.
+
+**United States** — `us-atlas` (114KB), an official Census Bureau dataset
+from the same maintainers as `world-atlas`, already in plain lon/lat.
+
+**Canada** — no equally official npm package exists, so this one is a
+hand-built asset at `lib/geo-data/canada-provinces-10m.json` (60KB): the 10
+provinces and 3 territories from Statistics Canada's cartographic boundary
+files, republished under the MIT license by
+[sachijay/canada_maps](https://github.com/sachijay/canada_maps), reprojected
+from Statistics Canada's Lambert projection to WGS84 lon/lat with `proj4`
+(the source ships in a projected coordinate system that looks like
+plausible-but-wrong lon/lat if used as-is — its eastings and northings are
+large enough to pass a casual glance), then simplified with `mapshaper`.
+`lib/geo-data/README.md` has the exact reprojection parameters and rebuild
+command, and the license text, so this can be regenerated or extended
+without redoing that research.
+
+A pin inside a covered country resolves to its state or province — a click,
+a heat colour, and the "cases here" panel all follow, and its border draws
+thinner than a country's so the map doesn't read the same at both scales.
+Every uncovered country still resolves at the whole-country level, and
+cities everywhere are already exact points regardless — they were never
+rounded to a country to begin with. Adding another country means finding (or
+building, as with Canada) an equally small, unprojected TopoJSON source for
+it and appending it to the `REGIONS` array in `components/WorldMap.js` the
+same way.
+
+Verified for both countries by checking that real cities resolve to the
+right subdivision rather than assuming a simplified boundary still holds:
+seven for the US, fourteen for Canada (one per province and territory),
+plus a same-named-city check (Toronto, Ontario against Toronto, Ohio) to
+confirm the country-vs-state split doesn't blur at a name that exists on
+both sides of the border.
+
+Three `world-atlas` features — Northern Cyprus, Somaliland and Kosovo — ship
+with no id in the 110m file, which collided all three onto the same map key.
+They're given a name-based id as a fallback so each stays distinct.
+
 **Topographic relief is not here, and is not cheap.** Terrain shading needs an
 elevation raster or hillshade tiles, which means a tile provider and a key, or
 bundling a dataset orders of magnitude larger than the 108KB of outlines.
@@ -218,6 +266,57 @@ A panel under the case list accounts for every case that is **not** drawn,
 split into locations that are Unknown and legacy text that was never checked.
 A map that silently omits cases would be worse than no map, so the count is
 always visible.
+
+## Calendar tab
+
+A plain month grid of every date applied, interview logged, and follow-up
+due, one dot per event on the day it falls on: red for a follow-up past due,
+amber for one due within a week, blue for one further out (the same colours
+the board's follow-up chips already use), teal for a day something was
+applied to, green for a day an interview was logged. Clicking a day lists its
+cases beside the grid (the same read-only detail list the map uses) and opens
+straight into the case from there.
+
+Three filter chips — Applied, Interview, Follow-up — toggle which of those
+event kinds are plotted at all, each with a count of how many cases carry
+that kind (a case can carry more than one, and the count doesn't change
+depending on whether that chip happens to be switched on). The Follow-up
+chip shows all three urgency colours rather than one, since a single colour
+would only ever match some of what it filters.
+
+Deliberately minimal beyond that — no per-stage filtering, no
+drag-to-reschedule, no year view. The board and the map already answer "what
+needs attention"; this tab only answers "what happened, and what's due, on
+this particular day," so it stays a plain calendar rather than growing into
+a second board.
+
+An interview date comes from a case's own communications log — any entry
+logged with type Interview — rather than a separate field, since that data
+already exists and a case can have logged more than one. A rejected case's
+follow-up date is left off the grid, matching `followUpBucket`'s own rule
+elsewhere in the app that there's nothing left to chase once a case is
+rejected; its applied and interview days still show, since those already
+happened regardless of how the case ended. The grid and the day-grouping are
+pure functions in `lib/calendar.js`, unit-tested against a real calendar
+month (leap years, month-end wraparounds, a case applied to and interviewed
+the same day, a filter that empties a day out entirely) rather than trusted
+by inspection, since a calendar is exactly the kind of code where an
+off-by-one is easy to miss by eye.
+
+### Two card display fixes found along the way
+
+The job-type, employment-type and location-type tags on a case card were
+styled only under a `.card` ancestor selector, which the map's and this
+tab's shared case-detail list (`PlaceCaseList`) never has — so there they
+rendered as bare, unstyled text instead of the same bordered pill they show
+on the board. De-scoped both rules so the same class means the same look
+everywhere it's used, rather than duplicating the styling under a second
+selector.
+
+An unset follow-up ("none set") or an empty contact log ("nothing logged")
+in that same detail list now render muted and italic instead of matching the
+weight of a real value, so an empty field reads as empty at a glance instead
+of looking like data.
 
 ## Structured modules and LaTeX output
 

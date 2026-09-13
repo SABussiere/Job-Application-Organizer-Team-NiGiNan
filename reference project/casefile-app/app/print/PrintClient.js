@@ -5,6 +5,20 @@ import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import ResumePreview from "@/components/ResumePreview";
 
+function applyModuleOverrides(modules, overrides = {}) {
+  return modules.map(module => {
+    const override = overrides?.[module.id];
+    if (!override) return module;
+    return {
+      ...module,
+      content: typeof override.content === "string" ? override.content : module.content,
+      bullets: Array.isArray(override.bullets)
+        ? override.bullets.map(String).filter(Boolean)
+        : module.bullets
+    };
+  });
+}
+
 /**
  * A bare page holding nothing but the resume sheet, so the browser's print
  * engine has no app chrome, scroll container or hidden-but-present siblings
@@ -14,6 +28,7 @@ import ResumePreview from "@/components/ResumePreview";
 export default function PrintClient() {
   const params = useSearchParams();
   const idsParam = params.get("ids");
+  const appId = params.get("appId");
   const label = params.get("label") || "";
 
   const [profile, setProfile] = useState(null);
@@ -28,16 +43,21 @@ export default function PrintClient() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.getResumeProfile(), api.listResumeModules()])
-      .then(([p, all]) => {
+    Promise.all([
+      api.getResumeProfile(),
+      api.listResumeModules(),
+      appId ? api.getApplication(appId) : Promise.resolve(null)
+    ])
+      .then(([p, all, app]) => {
         if (cancelled) return;
         setProfile(p);
+        const sourceModules = applyModuleOverrides(all, app?.resumeModuleOverrides);
         if (idsParam) {
           const wanted = idsParam.split(",").filter(Boolean);
-          const byId = new Map(all.map(m => [m.id, m]));
+          const byId = new Map(sourceModules.map(m => [m.id, m]));
           setModules(wanted.map(id => byId.get(id)).filter(Boolean));
         } else {
-          setModules(all);
+          setModules(sourceModules);
         }
         setLoading(false);
       })
@@ -47,7 +67,7 @@ export default function PrintClient() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [idsParam]);
+  }, [idsParam, appId]);
 
   // Open the print dialog once the sheet is actually on screen. The frame
   // wait keeps Safari from printing a blank first paint.

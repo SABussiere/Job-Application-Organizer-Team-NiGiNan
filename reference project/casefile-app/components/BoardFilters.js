@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FOLLOWUP_FILTERS, countByBucket } from "@/lib/followups";
 import {
   DATE_PRESETS,
@@ -23,6 +23,9 @@ export default function BoardFilters({ apps, filters, onChange, today, resultCou
   const counts = countByBucket(apps, today);
   const active = activeFilterCount(filters);
   const chips = activeChips(filters);
+  const trackRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const options = useMemo(() => {
     const map = {};
@@ -40,46 +43,100 @@ export default function BoardFilters({ apps, filters, onChange, today, resultCou
 
   const datesActive = Boolean(filters.appliedFrom || filters.appliedTo);
 
+  // The filter row scrolls sideways rather than wrapping to a second line
+  // (which used to push the board down and looked broken on a narrow
+  // window). Arrow buttons give mouse users a click target, since only
+  // touch/trackpad can swipe; they hide themselves once there's nothing
+  // left in that direction.
+  function updateScrollState() {
+    const el = trackRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }
+
+  useEffect(() => {
+    updateScrollState();
+    const el = trackRef.current;
+    if (!el) return;
+    const onResize = () => updateScrollState();
+    el.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      el.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", onResize);
+    };
+    // Re-measure whenever the set of controls (and therefore content width)
+    // could have changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options, filters.requisitionId, datesActive]);
+
+  function scrollByAmount(direction) {
+    const el = trackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * Math.round(el.clientWidth * 0.7), behavior: "smooth" });
+  }
+
   return (
     <div className="board-filters">
-      <div className="filter-row-main">
-        {MULTI_FILTERS.map(({ key, label }) => (
-          <MultiSelectFilter
-            key={key}
-            label={label}
-            options={options[key]}
-            selected={filters[key] || []}
-            onChange={values => set({ [key]: values })}
-          />
-        ))}
+      <div className="filter-carousel">
+        {canScrollLeft && (
+          <button
+            type="button"
+            className="filter-scroll-btn prev"
+            onClick={() => scrollByAmount(-1)}
+            aria-label="Scroll filters left"
+          >‹</button>
+        )}
 
-        <div className="req-field">
-          <input
-            type="text"
-            value={filters.requisitionId}
-            onChange={e => set({ requisitionId: e.target.value })}
-            placeholder="Requisition ID"
-            aria-label="Filter by requisition ID"
-          />
-          {filters.requisitionId && (
-            <button
-              className="search-clear"
-              onClick={() => set({ requisitionId: "" })}
-              aria-label="Clear requisition ID filter"
-            >×</button>
-          )}
+        <div className="filter-row-main" ref={trackRef}>
+          {MULTI_FILTERS.map(({ key, label }) => (
+            <MultiSelectFilter
+              key={key}
+              label={label}
+              options={options[key]}
+              selected={filters[key] || []}
+              onChange={values => set({ [key]: values })}
+            />
+          ))}
+
+          <div className="req-field">
+            <input
+              type="text"
+              value={filters.requisitionId}
+              onChange={e => set({ requisitionId: e.target.value })}
+              placeholder="Requisition ID"
+              aria-label="Filter by requisition ID"
+            />
+            {filters.requisitionId && (
+              <button
+                className="search-clear"
+                onClick={() => set({ requisitionId: "" })}
+                aria-label="Clear requisition ID filter"
+              >×</button>
+            )}
+          </div>
+
+          <button
+            className={`ms-button ${datesActive ? "has-selection" : ""} ${showDates ? "open" : ""}`}
+            onClick={() => setShowDates(!showDates)}
+            aria-expanded={showDates}
+          >
+            <span className="ms-button-label">
+              {datesActive ? "Date applied · set" : "Date applied"}
+            </span>
+            <span className="ms-caret" aria-hidden="true">▾</span>
+          </button>
         </div>
 
-        <button
-          className={`ms-button ${datesActive ? "has-selection" : ""} ${showDates ? "open" : ""}`}
-          onClick={() => setShowDates(!showDates)}
-          aria-expanded={showDates}
-        >
-          <span className="ms-button-label">
-            {datesActive ? "Date applied · set" : "Date applied"}
-          </span>
-          <span className="ms-caret" aria-hidden="true">▾</span>
-        </button>
+        {canScrollRight && (
+          <button
+            type="button"
+            className="filter-scroll-btn next"
+            onClick={() => scrollByAmount(1)}
+            aria-label="Scroll filters right"
+          >›</button>
+        )}
       </div>
 
       {showDates && (

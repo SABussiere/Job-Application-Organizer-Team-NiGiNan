@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { MODULE_TYPES, SECTION_TITLES, typeFields } from "@/lib/constants";
 import LatexPanel from "@/components/LatexPanel";
@@ -77,7 +77,7 @@ function ModuleCard({ module, onSaved, onDeleted, onReorder, isFirst, isLast }) 
   }
 
   return (
-    <div className="module-card">
+    <div className="module-card folder-panel">
       <div className="module-card-top">
         <select
           className="module-type-select"
@@ -88,7 +88,7 @@ function ModuleCard({ module, onSaved, onDeleted, onReorder, isFirst, isLast }) 
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <span className="module-kicker">→ {SECTION_TITLES[form.type] || "Additional"}</span>
+        <span className="module-kicker">{SECTION_TITLES[form.type] || "Additional"}</span>
         <div className="module-reorder">
           <button disabled={isFirst} onClick={() => onReorder(module.id, "up")} title="Move up">↑</button>
           <button disabled={isLast} onClick={() => onReorder(module.id, "down")} title="Move down">↓</button>
@@ -211,27 +211,32 @@ export default function ResumePage() {
   const [latex, setLatex] = useState("");
   const [profile, setProfile] = useState(null);
   const [rendering, setRendering] = useState(false);
+  const loadingModulesRef = useRef(false);
 
   async function load() {
+    if (loadingModulesRef.current) return;
+    loadingModulesRef.current = true;
     setLoading(true);
 
-    const data = await api.listResumeModules();
+    try {
+      const data = await api.listResumeModules();
 
-    if (data.length === 0) {
-      const createdModules = [];
+      if (data.length === 0) {
+        const createdModules = [];
 
-      for (const module of previewModules) {
-        const created = await api.createResumeModule(module);
-        createdModules.push(created);
+        for (const module of previewModules) {
+          const created = await api.createResumeModule(module);
+          createdModules.push(created);
+        }
+
+        setModules(createdModules);
+      } else {
+        setModules(data);
       }
-    
-      setModules(createdModules);
+    } finally {
+      loadingModulesRef.current = false;
+      setLoading(false);
     }
-    else {
-      setModules(data);
-    }
-
-    setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
@@ -278,7 +283,7 @@ export default function ResumePage() {
   }
 
   return (
-    <div className="panel" style={{ maxWidth: 900 }}>
+    <div className="panel resume-panel" style={{ maxWidth: 900 }}>
       <h2>Master Resume</h2>
       <p className="hint hint-wide">
         Break your resume into modules — a summary, each job, each project, your

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import {
   COMM_TYPES,
@@ -16,7 +16,7 @@ import { suggestionValues } from "@/lib/filters";
 import SuggestInput from "@/components/SuggestInput";
 import LocationInput from "@/components/LocationInput";
 import { assembleResumeText } from "@/lib/matching";
-import { dateRange, latexFileName } from "@/lib/latex";
+import { dateRange, latexFileName, renderLatexResume } from "@/lib/latex";
 import { formatDate } from "@/lib/followups";
 import LatexPanel from "@/components/LatexPanel";
 import ResumeSheetPanel from "@/components/ResumeSheetPanel";
@@ -26,14 +26,49 @@ import ResumeSheetPanel from "@/components/ResumeSheetPanel";
  * ordered picks first, then every remaining master module, unchecked, so any
  * of them can be swapped in without leaving the modal.
  */
-function buildRows(masterModules, selectedIds, matchSummary) {
+function applyModuleOverrides(masterModules, overrides = {}) {
+  return masterModules.filter(Boolean).map(module => {
+    const override = overrides?.[module.id];
+    if (!override) return module;
+    return {
+      ...module,
+      content: typeof override.content === "string" ? override.content : module.content,
+      bullets: Array.isArray(override.bullets)
+        ? override.bullets.map(String).filter(Boolean)
+        : module.bullets
+    };
+  });
+}
+
+function moduleOverridesForRows(rows, masterModules) {
+  const masterById = new Map(masterModules.map(module => [module.id, module]));
+  const overrides = {};
+
+  rows.filter(row => row.included).forEach(row => {
+    const original = masterById.get(row.module.id);
+    if (!original) return;
+
+    const originalBullets = JSON.stringify(original.bullets || []);
+    const rowBullets = JSON.stringify(row.module.bullets || []);
+    if ((row.module.content || "") !== (original.content || "") || rowBullets !== originalBullets) {
+      overrides[row.module.id] = {
+        content: row.module.content || "",
+        bullets: Array.isArray(row.module.bullets) ? row.module.bullets : []
+      };
+    }
+  });
+
+  return overrides;
+}
+
+function buildRows(masterModules, selectedIds, matchSummary, overrides = {}) {
   const matchById = new Map((matchSummary || []).map(m => [m.moduleId, m]));
   const byId = new Map(masterModules.map(m => [m.id, m]));
   const ordered = [];
   const seen = new Set();
 
   (selectedIds || []).forEach(id => {
-    const module = byId.get(id);
+    const module = applyModuleOverrides([byId.get(id)], overrides)[0];
     if (!module || seen.has(id)) return;
     seen.add(id);
     ordered.push({ module, included: true, match: matchById.get(id) || null });
@@ -56,7 +91,7 @@ function reasonFor(row) {
   return "no overlap with this posting";
 }
 
-export default function ApplicationModal({ appId, onClose, onChanged, apps = [] }) {
+export default function ApplicationModal({ appId, onClose, onChanged, apps = [], origin }) {
   const [tab, setTab] = useState("details");
   const [app, setApp] = useState(null);
   const [form, setForm] = useState(null);
@@ -71,11 +106,36 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   const [latexError, setLatexError] = useState("");
   const [tailoring, setTailoring] = useState(false);
   const [tailorError, setTailorError] = useState("");
+  const [tailorNotice, setTailorNotice] = useState("");
+  const [prepLoading, setPrepLoading] = useState(false);
+  const [prepError, setPrepError] = useState("");
   const [commType, setCommType] = useState("note");
   const [commDate, setCommDate] = useState(new Date().toISOString().slice(0, 10));
   const [commText, setCommText] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+
+  // Folder-opening / page-flip animation. Handled imperatively via refs
+  // rather than React state driving the transform, because this is the
+  // classic FLIP technique: it needs to read the modal's actual laid-out
+  // position *after* mount, then animate from there, which a plain
+  // declarative style prop can't express without an extra render.
+  const [closing, setClosing] = useState(false);
+  const [flipping, setFlipping] = useState(false);
+  // "flap" (only reachable when there's a card to open from): the folder
+  // shell is showing, its lid lifting, paper rising out of it -- the real
+  // modal is still hidden. "open": steady state, folder shell gone.
+  const [openPhase, setOpenPhase] = useState(origin ? "flap" : "open");
+  const [openerAnimating, setOpenerAnimating] = useState(false);
+  const modalRef = useRef(null);
+  const hasOpenedRef = useRef(false);
+  const reducedMotionRef = useRef(false);
+
+  useEffect(() => {
+    reducedMotionRef.current =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +154,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         const initialIds = Array.isArray(data.resumeModuleIds)
           ? data.resumeModuleIds
           : masterModules.map(m => m.id);
-        setRows(buildRows(masterModules, initialIds, null));
+        setRows(buildRows(masterModules, initialIds, null, data.resumeModuleOverrides));
         setForm({
           company: data.company,
           position: data.position,
@@ -116,6 +176,139 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     );
     return () => { cancelled = true; };
   }, [appId]);
+
+  // Timings for the two-part open: how long the folder stays showing with
+  // its lid lifting and paper rising out of it, and how long the real modal
+  // then takes to grow from there into its full size.
+  const FLAP_MS = 480;
+  const RISE_MS = 460;
+
+  // Runs the first time the modal actually has something to show (data
+  // loads after mount, so the ref isn't attached on the very first pass).
+  // Guarded by hasOpenedRef so a later data refresh (saving, tailoring)
+  // never replays the entrance.
+  useLayoutEffect(() => {
+    if (hasOpenedRef.current) return;
+    const el = modalRef.current;
+    if (!el) return;
+    hasOpenedRef.current = true;
+    if (reducedMotionRef.current) return;
+
+    if (!origin) {
+      // No card to open from (e.g. launched from the map) -- a plain,
+      // gentle entrance rather than matching a specific rectangle. There's
+      // no folder shell to show first, so this is the whole animation.
+      el.style.transform = "scale(0.94)";
+      el.style.opacity = "0";
+      requestAnimationFrame(() => {
+        el.style.transition =
+          "transform 260ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease-out";
+        el.style.transform = "none";
+        el.style.opacity = "1";
+      });
+      return;
+    }
+
+    // Phase 1: the real modal stays invisible while a small decorative
+    // "folder" (positioned exactly over the clicked card, via `origin`)
+    // shows its lid lifting and paper rising out from underneath --
+    // triggered a frame later so the CSS transition animates from the
+    // closed state rather than the browser skipping straight to open.
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
+    requestAnimationFrame(() => setOpenerAnimating(true));
+
+    setTimeout(() => {
+      // Phase 2: hand off from the folder illusion to the real modal. This
+      // is the same FLIP technique as before -- match the card's rect, then
+      // clear the transform with a transition running -- just starting once
+      // the folder has visibly finished opening rather than at the same
+      // instant as the click.
+      setOpenPhase("rising");
+      el.style.pointerEvents = "";
+
+      const final = el.getBoundingClientRect();
+      const scaleX = origin.width / final.width;
+      const scaleY = origin.height / final.height;
+      const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
+      const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+
+      el.style.transformOrigin = "center";
+      el.style.transform =
+        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-10deg)`;
+
+      requestAnimationFrame(() => {
+        el.style.transition =
+          `transform ${RISE_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${RISE_MS - 100}ms ease-out`;
+        el.style.transform = "none";
+        el.style.opacity = "1";
+      });
+
+      setTimeout(() => setOpenPhase("open"), RISE_MS + 20);
+    }, FLAP_MS);
+    // Deliberately no cleanup clearing this timer: hasOpenedRef already
+    // guarantees this branch runs at most once, and clearing it on a later
+    // dependency change (app/form updating again before it fires) would
+    // leave the modal stuck showing the folder forever -- hasOpenedRef
+    // would block the effect from ever arming a replacement.
+  }, [app, form, origin]);
+
+  /**
+   * Plays the close animation (the reverse of the open one -- shrinking
+   * back down into the card it came from) and only tells the parent to
+   * actually unmount once it has finished, so the folder visibly closes
+   * instead of just vanishing.
+   */
+  function requestClose() {
+    if (closing) return;
+    setClosing(true);
+    const el = modalRef.current;
+    if (!el || reducedMotionRef.current) { onClose(); return; }
+
+    el.style.transition =
+      "transform 300ms cubic-bezier(0.4, 0, 1, 1), opacity 260ms ease-in";
+    if (origin) {
+      const final = el.getBoundingClientRect();
+      const scaleX = origin.width / final.width;
+      const scaleY = origin.height / final.height;
+      const dx = (origin.left + origin.width / 2) - (final.left + final.width / 2);
+      const dy = (origin.top + origin.height / 2) - (final.top + final.height / 2);
+      el.style.transform =
+        `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY}) rotateX(-10deg)`;
+    } else {
+      el.style.transform = "scale(0.94)";
+    }
+    el.style.opacity = "0";
+
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener("transitionend", finish);
+      onClose();
+    };
+    el.addEventListener("transitionend", finish);
+    // Safety net: transitionend can fail to fire (e.g. the tab loses
+    // focus mid-transition), and the modal must not get stuck open.
+    setTimeout(finish, 340);
+  }
+
+  /**
+   * Switches tabs with a quick page-flip: the current sheet rotates to
+   * edge-on (invisible, since a flat plane viewed exactly side-on has no
+   * width), the content swaps at that point, then it rotates back to
+   * face-on -- one element, not two layered faces, which is what keeps
+   * this simple and reliable rather than a full 3D card flip.
+   */
+  function switchTab(next) {
+    if (next === tab || flipping) return;
+    if (reducedMotionRef.current) { setTab(next); return; }
+    setFlipping(true);
+    setTimeout(() => {
+      setTab(next);
+      requestAnimationFrame(() => setFlipping(false));
+    }, 150);
+  }
 
   if (!app || !form) return null;
 
@@ -150,20 +343,21 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     setDetailsError("");
     await api.updateApplication(appId, form);
     onChanged();
-    onClose();
+    requestClose();
   }
 
   async function deleteCase() {
     if (!confirm("Delete this case? This can't be undone.")) return;
     await api.deleteApplication(appId);
     onChanged();
-    onClose();
+    requestClose();
   }
 
   async function saveResume() {
     await api.updateApplication(appId, {
       resumeVersion: resumeText,
-      resumeModuleIds: selectedIds
+      resumeModuleIds: selectedIds,
+      resumeModuleOverrides: moduleOverridesForRows(rows, modules)
     });
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1200);
@@ -201,7 +395,11 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     setLatexLoading(true);
     setLatexError("");
     try {
-      setLatex(await api.renderLatex(ids));
+      const byId = new Map(rows.map(row => [row.module.id, row.module]));
+      setLatex(renderLatexResume(
+        profile,
+        ids.map(id => byId.get(id)).filter(Boolean)
+      ));
     } catch (e) {
       setLatexError(e.message);
     } finally {
@@ -219,20 +417,45 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
     if (!trimmedJobDescription) return;
     setTailoring(true);
     setTailorError("");
+    setTailorNotice("");
     try {
       const result = await api.tailorApplication(appId, trimmedJobDescription);
       setApp(result.application);
       setJobDescription(trimmedJobDescription);
       const ids = result.application.resumeModuleIds || [];
-      const next = buildRows(modules, ids, result.matchSummary);
+      const next = buildRows(modules, ids, result.matchSummary, result.application.resumeModuleOverrides);
       setRows(next);
       setResumeText(result.application.resumeVersion);
+      setOutput("text");
       setLatex("");
-      if (output === "latex") renderLatex(ids);
+      const changed = result.application.tailoredFrom?.changedModules ?? 0;
+      setTailorNotice(
+        changed > 0
+          ? `Groq reworded ${changed} of ${ids.length} included modules.`
+          : "Groq returned wording close to your master resume; try a more detailed job description."
+      );
     } catch (e) {
       setTailorError(e.message);
     } finally {
       setTailoring(false);
+    }
+  }
+
+  async function generatePrep() {
+    setPrepLoading(true);
+    setPrepError("");
+    try {
+      const updated = await api.generateInterviewQuestions(appId, {
+        company: app.company,
+        position: app.position,
+        jobType: app.jobType,
+        jobDescription
+      });
+      setApp(updated);
+    } catch (e) {
+      setPrepError(e.message);
+    } finally {
+      setPrepLoading(false);
     }
   }
 
@@ -249,9 +472,34 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
   }
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal">
-        <button type="button" className="modal-close" onClick={onClose}>&times;</button>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
+      {openPhase === "flap" && origin && (
+        // A decorative stand-in for the real modal: sits exactly over the
+        // clicked card (via `origin`) and shows its lid lifting with paper
+        // rising out from underneath, before the real modal takes over.
+        <div
+          className={`case-opener ${openerAnimating ? "opening" : ""}`}
+          style={{
+            left: origin.left,
+            top: origin.top,
+            width: origin.width,
+            height: origin.height
+          }}
+          aria-hidden="true"
+        >
+          <div className="case-opener-body" />
+          <span className="case-opener-paper p1" />
+          <span className="case-opener-paper p2" />
+          <span className="case-opener-paper p3" />
+          <div className="case-opener-flap" />
+        </div>
+      )}
+
+      <div
+        className={`modal ${closing ? "closing" : ""} ${flipping ? "flipping" : ""}`}
+        ref={modalRef}
+      >
+        <button type="button" className="modal-close" onClick={requestClose}>&times;</button>
 
         <div className="modal-heading-row">
           <h2 className="modal-heading">{app.position || "Untitled position"}</h2>
@@ -261,14 +509,48 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
           </p>
         </div>
 
-        <div className="modal-tabs">
-          <button type="button" className={`modal-tab-btn ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>Details</button>
-          <button type="button" className={`modal-tab-btn ${tab === "resume" ? "active" : ""}`} onClick={() => setTab("resume")}>Tailored Resume</button>
-          <button type="button" className={`modal-tab-btn ${tab === "comms" ? "active" : ""}`} onClick={() => setTab("comms")}>Communications</button>
+        <div className="paper-stack-tabs">
+          {/* Purely decorative: suggests the three sheets below are held
+              together, the way a physical case file would be. */}
+          {/* Feather Icons "paperclip" glyph (MIT licensed) -- a proven
+              shape rather than a hand-derived guess at one. */}
+          <svg
+            className="paperclip"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "details" ? "active" : ""}`}
+            onClick={() => switchTab("details")}
+          >Details</button>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "resume" ? "active" : ""}`}
+            onClick={() => switchTab("resume")}
+          >Tailored Resume</button>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "prep" ? "active" : ""}`}
+            onClick={() => switchTab("prep")}
+          >Interview Prep</button>
+          <button
+            type="button"
+            className={`paper-tab ${tab === "comms" ? "active" : ""}`}
+            onClick={() => switchTab("comms")}
+          >Communications</button>
         </div>
 
         {tab === "details" && (
-          <div>
+          <div className="paper-sheet-content">
             <div className="mform-row">
               <div className="mfield">
                 <label>Company</label>
@@ -372,7 +654,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
         )}
 
         {tab === "resume" && (
-          <div>
+          <div className="paper-sheet-content">
             <div className="tailor-box">
               <label className="tailor-label">Job description</label>
               <textarea
@@ -384,12 +666,13 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
               />
               <div className="tailor-actions">
                 <button type="button" className="btn-primary" onClick={tailorFromJD} disabled={tailoring || !jobDescription.trim()}>
-                  {tailoring ? "Matching..." : "Generate tailored resume"}
+                  {tailoring ? "Generating..." : "Generate tailored resume"}
                 </button>
                 <button type="button" className="btn-secondary-inline" onClick={resetFromMaster}>
                   Reset to full master
                 </button>
                 {tailorError && <span className="tailor-error">{tailorError}</span>}
+                {tailorNotice && !tailorError && <span className="hint">{tailorNotice}</span>}
               </div>
             </div>
 
@@ -471,6 +754,7 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
                 profile={profile}
                 modules={selectedModules}
                 moduleIds={selectedIds}
+                appId={appId}
                 label={[app.company, app.position].filter(Boolean).join(" — ")}
               />
             )}
@@ -509,8 +793,56 @@ export default function ApplicationModal({ appId, onClose, onChanged, apps = [] 
           </div>
         )}
 
+        {tab === "prep" && (
+          <div className="paper-sheet-content">
+            <div className="tailor-box">
+              <p className="hint" style={{ margin: 0 }}>
+                Generates {(app.interviewQuestions || []).length ? "a fresh set of" : "3–4"} interview
+                questions {app.company ? `${app.company} ` : "this employer "}
+                might ask for {app.position || "this role"}
+                {jobDescription.trim()
+                  ? ", grounded in the job posting on the Tailored Resume tab"
+                  : " — paste the job posting on the Tailored Resume tab first for sharper, more specific questions"}.
+                Treat these as a prep starting point, not a guarantee of what
+                actually comes up.
+              </p>
+              <div className="tailor-actions">
+                <button type="button" className="btn-primary" onClick={generatePrep} disabled={prepLoading}>
+                  {prepLoading
+                    ? "Thinking..."
+                    : (app.interviewQuestions || []).length
+                      ? "Regenerate questions"
+                      : "Generate questions"}
+                </button>
+                {prepError && <span className="tailor-error">{prepError}</span>}
+              </div>
+            </div>
+
+            {(app.interviewQuestions || []).length > 0 ? (
+              <>
+                <ol className="prep-q-list">
+                  {app.interviewQuestions.map((q, i) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ol>
+                {app.interviewQuestionsGeneratedAt && (
+                  <p className="hint" style={{ margin: "12px 0 0" }}>
+                    Generated {formatDate(app.interviewQuestionsGeneratedAt.slice(0, 10))}
+                  </p>
+                )}
+              </>
+            ) : (
+              !prepLoading && (
+                <p className="hint" style={{ marginTop: 16 }}>
+                  No questions generated yet.
+                </p>
+              )
+            )}
+          </div>
+        )}
+
         {tab === "comms" && (
-          <div>
+          <div className="paper-sheet-content">
             <form className="comm-form" onSubmit={logComm}>
               <select value={commType} onChange={e => setCommType(e.target.value)}>
                 {COMM_TYPES.map(t => (
