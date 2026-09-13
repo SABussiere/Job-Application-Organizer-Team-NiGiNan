@@ -147,7 +147,7 @@ export default function ReviewPage() {
           </p>
         </div>
         <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-          {syncing ? "Syncing..." : "📥 Sync Gmail"}
+          {syncing ? "Syncing..." : "Scan Gmail"}
         </button>
       </div>
       {syncMessage && <p className="hint">{syncMessage}</p>}

@@ -33,7 +33,23 @@ export default function BoardPage() {
     });
   }, []);
 
+  const setAppStatus = useCallback((id, nextStatus) => {
+    setApps(prev => prev.map(app =>
+      app.id === id ? { ...app, status: nextStatus } : app
+    ));
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!syncMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setSyncMessage("");
+    }, 4000);
+
+    return () => clearTimeout(timeoutId);
+  }, [syncMessage]);
 
   useEffect(() => {
     fetch("/api/auth/google/status")
@@ -53,14 +69,32 @@ export default function BoardPage() {
     setDragOverStage(null);
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
-    await api.updateApplication(id, { status: stage });
-    load();
+
+    const prevStatus = apps.find(app => app.id === id)?.status;
+    setAppStatus(id, stage);
+
+    try {
+      await api.updateApplication(id, { status: stage });
+    } catch (err) {
+      if (prevStatus) {
+        setAppStatus(id, prevStatus);
+      }
+    }
   }
 
   async function moveApp(id, stage) {
     if (!stage) return;
-    await api.updateApplication(id, { status: stage });
-    load();
+
+    const prevStatus = apps.find(app => app.id === id)?.status;
+    setAppStatus(id, stage);
+
+    try {
+      await api.updateApplication(id, { status: stage });
+    } catch (err) {
+      if (prevStatus) {
+        setAppStatus(id, prevStatus);
+      }
+    }
   }
 
   async function syncGmail() {
@@ -131,7 +165,7 @@ export default function BoardPage() {
         <div className="board-actions">
           <button className="btn-stamp" onClick={() => setCreating(true)}>+ New application</button>
           <button className="btn-secondary-inline" onClick={syncGmail} disabled={syncing}>
-            {syncing ? "Scanning..." : "📥 Scan Gmail"}
+            {syncing ? "Scanning..." : "Scan Gmail"}
           </button>
 
           {gmailConnected && (
@@ -215,4 +249,8 @@ export default function BoardPage() {
       )}
     </div>
   );
+}
+
+function applyStatusUpdate(id, status) {
+  setApps(apps => apps.map(app => app.id === id ? { ...app, status } : app));
 }

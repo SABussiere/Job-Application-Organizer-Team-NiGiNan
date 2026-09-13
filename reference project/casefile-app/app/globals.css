@@ -116,13 +116,33 @@ a { color: inherit; }
 }
 @media (max-width: 640px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #EEF8F4;
+  border: 1px solid rgba(18, 85, 68, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(18, 85, 68, 0.07);
   border-radius: 10px;
   padding: 16px 18px;
 }
-.stat-card .num { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-.stat-card .label { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.stat-card .num {
+  color: #124F42;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.stat-card .label {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.stat-card.alert {
+  background: #FEE2E2;
+  border-color: rgba(220, 38, 38, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.06);
+}
+.stat-card.alert .num,
+.stat-card.alert .label {
+  color: #B91C1C;
+}
 
 /* ---------- Board ---------- */
 .board-toolbar {
@@ -168,7 +188,7 @@ a { color: inherit; }
 }
 .column-header {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 12px; padding: 0 2px;
+  margin-bottom: 18px; padding: 0 2px;
 }
 .column-header::before {
   content: "";
@@ -181,15 +201,50 @@ a { color: inherit; }
 .column.drag-over { background: var(--accent-soft); outline: 1.5px dashed var(--accent); outline-offset: 4px; border-radius: 12px; }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-top: none;
+  border-radius: 0 12px 12px 12px;
+  padding: 18px 16px 14px;
+  margin: 0 0 18px;
   cursor: grab;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 8px 18px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.card:hover { border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -12px;
+  width: 48%;
+  min-width: 110px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 1px solid rgba(18, 85, 68, 0.18);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 8px 8px 8px 8px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(245,247,246,0.92));
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
+  z-index: 0;
+}
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+.card:hover {
+  border-color: rgba(18, 85, 68, 0.28);
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02), 0 10px 20px rgba(15, 23, 42, 0.06);
+  transform: none;
+}
 .card-open {
   display: block; width: 100%; text-align: left; padding: 0;
   background: none; border: none; font: inherit; color: inherit; cursor: pointer;
@@ -242,6 +297,7 @@ a { color: inherit; }
 @media (max-width: 640px) { .panel { padding: 18px 16px; } }
 .panel h2 { font-size: 18px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
 .hint { color: var(--muted); font-size: 13px; margin: 0 0 16px; max-width: 65ch; line-height: 1.5; }
+.hint-wide { max-width: none; }
 
 textarea.resume-input {
   width: 100%; min-height: 340px; padding: 14px;
@@ -249,7 +305,9 @@ textarea.resume-input {
   font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.6;
   resize: vertical; background: var(--bg); color: var(--ink);
 }
-textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea.resume-input:focus, textarea.module-content-input:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.saved-note { color: var(--interview); font-size: 12.5px; font-weight: 500; align-self: center; }
+.error-note { color: var(--rejected); font-size: 12.5px; font-weight: 500; align-self: center; }
 
 /* ---------- Buttons ---------- */
 .btn-stamp, .btn-primary {
@@ -311,6 +369,17 @@ textarea.resume-input:focus, input:focus, select:focus { outline: 2px solid var(
 }
 
 /* ---------- Tailoring box ---------- */
+.tailor-panel {
+  background: var(--accent-soft);
+  border: 1px solid #cfe3dd;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 18px 0;
+}
+.tailor-panel h3 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
 .tailor-box {
   background: var(--accent-soft);
   border: 1px solid #cfe3dd;
